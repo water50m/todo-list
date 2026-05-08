@@ -1,27 +1,168 @@
-@import "tailwindcss";
+/* app/globals.css */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --font-body: 'IBM Plex Sans Thai', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --bg: #F7F6F2;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F0EFE9;
+  --bg-muted: #ECEAE3;
+  --border: #E2E0D8;
+  --border-subtle: #EDECE6;
+  --text-primary: #1A1916;
+  --text-secondary: #6B6963;
+  --text-muted: #A5A39C;
+  --accent: #1A1916;
+  --accent-fg: #F7F6F2;
+  --urgent: #C93535; --urgent-bg: #FEF0F0;
+  --high: #C47A1A;   --high-bg: #FEF5E7;
+  --med: #1E6FB5;    --med-bg: #EBF4FD;
+  --low: #2E7D52;    --low-bg: #EBF7F1;
+  --success: #2E7D52; --success-bg: #EBF7F1;
+  --danger: #C93535;  --danger-bg: #FEF0F0;
+  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-xl: 24px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.05);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ── Reset ── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+/* ── Animations ── */
+@keyframes fadeIn  { from { opacity:0; transform:translateY(6px);  } to { opacity:1; transform:translateY(0); } }
+@keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+@keyframes spin    { to   { transform: rotate(360deg); } }
+.fade-in  { animation: fadeIn  0.2s  ease both; }
+.slide-up { animation: slideUp 0.25s ease both; }
+
+/* ── Card ── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ── Button ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary  { background: var(--accent); color: var(--accent-fg); }
+.btn-primary:hover:not(:disabled) { opacity: 0.85; }
+.btn-secondary {
+  background: var(--bg-muted);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover:not(:disabled) { background: var(--bg-hover); }
+.btn-ghost { background: transparent; color: var(--text-secondary); }
+.btn-ghost:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-primary); }
+.btn-sm   { padding: 5px 12px; font-size: 12px; }
+.btn-icon { padding: 7px; }
+
+/* ── Input ── */
+.input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input:focus   { border-color: var(--accent); background: var(--bg-card); }
+.input::placeholder { color: var(--text-muted); }
+textarea.input { resize: vertical; }
+
+/* ── Badge ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid;
 }
 
+/* ── Section label ── */
+.section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Divider ── */
+.divider { height: 1px; background: var(--border-subtle); }
+
+/* ── Spinner ── */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ── Checkbox ── */
+.checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--bg-card);
+}
+.checkbox:hover  { border-color: var(--accent); }
+.checkbox.checked { background: var(--success); border-color: var(--success); }
+
+/* ── Priority badge colors ── */
+.priority-urgent { color: var(--urgent); background: var(--urgent-bg); border-color: #FECACA; }
+.priority-high   { color: var(--high);   background: var(--high-bg);   border-color: #FDE68A; }
+.priority-med    { color: var(--med);    background: var(--med-bg);    border-color: #BFDBFE; }
+.priority-low    { color: var(--low);    background: var(--low-bg);    border-color: #BBF7D0; }

@@ -300,7 +300,7 @@ export default function CalendarPage() {
             zIndex: 100, backdropFilter: 'blur(2px)',
           }} />
           <div className="card slide-up" style={{
-            position: 'fixed', top: '50%', left: '50%',
+            position: 'fixed', top: '10%', left: '40%',
             transform: 'translate(-50%,-50%)',
             width: 480, zIndex: 101, padding: 24,
             boxShadow: 'var(--shadow-lg)', maxHeight: '90vh', overflowY: 'auto',
