@@ -34,7 +34,8 @@
 ```env
 DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@<DB_HOST>:<DB_PORT>/todo_list
 JWT_SECRET=<LONG_RANDOM_SECRET>
-NEXT_PUBLIC_API_URL=http://localhost:3001
+APP_PORT=3002
+NEXT_PUBLIC_API_URL=http://localhost:3002
 ```
 
 ตัวอย่างสำหรับ Docker ที่ database อยู่บน host machine:
@@ -42,7 +43,8 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 ```env
 DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@host.docker.internal:5432/todo_list
 JWT_SECRET=<LONG_RANDOM_SECRET>
-NEXT_PUBLIC_API_URL=http://localhost:3001
+APP_PORT=3002
+NEXT_PUBLIC_API_URL=http://localhost:3002
 ```
 
 โดยทั่วไป PostgreSQL ใช้ port `5432` เป็นค่า default แต่ถ้า database ใช้ port อื่น ให้เปลี่ยน `<DB_PORT>` ตามจริง
@@ -88,7 +90,7 @@ npm run dev
 เปิดแอปที่:
 
 ```text
-http://localhost:3001
+http://localhost:3002
 ```
 
 ## Production Build
@@ -111,10 +113,10 @@ docker compose up -d --build
 เปิดแอปที่:
 
 ```text
-http://localhost:3001
+http://localhost:3002
 ```
 
-Docker Compose ของโปรเจกต์นี้ map host port เป็น `3001` ไปยัง container port `3000`
+Docker Compose ของโปรเจกต์นี้ map host port จาก `APP_PORT` ไปยัง container port `3000` ถ้าต้องการเปลี่ยน port ให้แก้ `APP_PORT` และ `NEXT_PUBLIC_API_URL` ใน `.env`
 
 หยุด container:
 
@@ -146,4 +148,4 @@ src/
 
 - `.env` ถูก ignore โดย git แล้ว ไม่ควร commit secret จริงเข้า repo
 - ถ้าใช้ Docker บน Windows/Mac แล้ว database อยู่บน host machine ให้ใช้ `host.docker.internal` ใน `DATABASE_URL`
-- โปรเจกต์นี้ใช้ host port `3001` เพื่อหลีกเลี่ยงการชนกับ service อื่นที่ใช้ `3000`
+- โปรเจกต์นี้ใช้ host port `3002` เพื่อหลีกเลี่ยงการชนกับ service อื่นที่ใช้ `3000` หรือ `3001`
