@@ -32,26 +32,28 @@
 สร้างไฟล์ `.env` ที่ root ของโปรเจกต์:
 
 ```env
-DATABASE_URL=postgresql://USER:PASSWORD@host.docker.internal:5432/todo_list
-JWT_SECRET=change-this-long-random-secret
-NEXT_PUBLIC_API_URL=http://localhost:3000
+DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@<DB_HOST>:<DB_PORT>/todo_list
+JWT_SECRET=<LONG_RANDOM_SECRET>
+NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
-ถ้ารันแบบ local โดยไม่ผ่าน Docker และ PostgreSQL อยู่ในเครื่องเดียวกัน อาจใช้:
+ตัวอย่างสำหรับ Docker ที่ database อยู่บน host machine:
 
 ```env
-DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/todo_list
-JWT_SECRET=change-this-long-random-secret
-NEXT_PUBLIC_API_URL=http://localhost:3000
+DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@host.docker.internal:5432/todo_list
+JWT_SECRET=<LONG_RANDOM_SECRET>
+NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
+
+โดยทั่วไป PostgreSQL ใช้ port `5432` เป็นค่า default แต่ถ้า database ใช้ port อื่น ให้เปลี่ยน `<DB_PORT>` ตามจริง
 
 โปรเจกต์ยังรองรับ env แบบแยกค่าเป็น fallback:
 
 ```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=USER
-DB_PASS=PASSWORD
+DB_HOST=<DB_HOST>
+DB_PORT=<DB_PORT>
+DB_USER=<DB_USER>
+DB_PASS=<DB_PASSWORD>
 DB_NAME=todo_list
 ```
 
@@ -86,7 +88,7 @@ npm run dev
 เปิดแอปที่:
 
 ```text
-http://localhost:3000
+http://localhost:3001
 ```
 
 ## Production Build
@@ -109,8 +111,10 @@ docker compose up -d --build
 เปิดแอปที่:
 
 ```text
-http://localhost:3000
+http://localhost:3001
 ```
+
+Docker Compose ของโปรเจกต์นี้ map host port เป็น `3001` ไปยัง container port `3000`
 
 หยุด container:
 
@@ -142,4 +146,4 @@ src/
 
 - `.env` ถูก ignore โดย git แล้ว ไม่ควร commit secret จริงเข้า repo
 - ถ้าใช้ Docker บน Windows/Mac แล้ว database อยู่บน host machine ให้ใช้ `host.docker.internal` ใน `DATABASE_URL`
-- ถ้า port `3000` ถูกใช้งานอยู่แล้ว ให้แก้ mapping ใน `docker-compose.yml`
+- โปรเจกต์นี้ใช้ host port `3001` เพื่อหลีกเลี่ยงการชนกับ service อื่นที่ใช้ `3000`
