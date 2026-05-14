@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardStats, Appointment } from '@/types';
-import { PriorityBadge } from '@/components/Badge';
 
 const PRIORITY_ORDER = ['urgent','high','med','low'] as const;
 const PRIORITY_LABELS: Record<string,string> = { urgent:'ด่วนมาก', high:'สำคัญ', med:'ปกติ', low:'ไม่เร่ง' };
@@ -104,9 +103,9 @@ export default function DashboardPage() {
   const maxCategory = Math.max(...stats.tasks_by_category.map(c => c.count), 1);
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+    <div className="page-stack">
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between' }}>
+      <div className="page-header" style={{ alignItems:'flex-end' }}>
         <div>
           <h1 style={{ fontSize:22, fontWeight:600, marginBottom:4 }}>Dashboard</h1>
           <p style={{ fontSize:13, color:'var(--text-secondary)' }}>
@@ -119,7 +118,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat cards — clickable to filter tasks */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+      <div className="dashboard-stats">
         <StatCard value={stats.total_tasks} label="งานทั้งหมด" sub="รายการที่สร้าง"
           onClick={() => router.push('/tasks')} />
         <StatCard value={`${stats.completion_rate}%`} label="Completion Rate"
@@ -134,7 +133,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts row */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+      <div className="dashboard-grid">
         <div className="card" style={{ padding:'16px 20px' }}>
           <div style={{ marginBottom:12 }}>
             <div style={{ fontSize:13, fontWeight:600 }}>ความคืบหน้า 7 วัน</div>
@@ -158,7 +157,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Second row */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+      <div className="dashboard-grid">
         <div className="card" style={{ padding:'16px 20px' }}>
           <div style={{ fontSize:13, fontWeight:600, marginBottom:14 }}>หมวดหมู่</div>
           {stats.tasks_by_category.length === 0 ? (
@@ -244,7 +243,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick actions */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
+      <div className="quick-actions-grid">
         {[
           { icon:'📋', label:'ดู Tasks ทั้งหมด',     href:'/tasks' },
           { icon:'☀️', label:'Daily Checklist',      href:'/daily' },

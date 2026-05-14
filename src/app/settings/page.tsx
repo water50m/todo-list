@@ -196,7 +196,7 @@ export default function SettingsPage() {
         onCancel={() => setConfirm(c=>({...c,open:false}))}
       />
 
-      <div style={{ display:'flex', flexDirection:'column', gap:24, maxWidth:660 }}>
+      <div className="page-stack settings-container">
         <h1 style={{ fontSize:22, fontWeight:600 }}>Settings</h1>
 
         {/* Tabs */}

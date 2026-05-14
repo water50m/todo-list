@@ -68,9 +68,8 @@ export default function CreateTaskModal({ open, onClose, onCreated }: Props) {
       }} />
 
       {/* Drawer */}
-      <div className="slide-up" style={{
-        position:'fixed', right:0, top:0, bottom:0,
-        width: 480, background:'var(--bg-card)',
+      <div className="slide-up task-drawer" style={{
+        background:'var(--bg-card)',
         borderLeft: '1px solid var(--border)',
         zIndex:101, display:'flex', flexDirection:'column',
         boxShadow:'var(--shadow-lg)',

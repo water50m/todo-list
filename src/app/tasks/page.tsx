@@ -92,10 +92,10 @@ export default function TasksPage() {
   return (
     <>
       <Toaster toasts={toast.toasts} onDismiss={toast.dismiss} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div className="page-stack">
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div className="page-header">
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>Tasks</h1>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -113,11 +113,11 @@ export default function TasksPage() {
         </div>
 
         {/* Filters */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input className="input" value={search}
+        <div className="toolbar">
+          <input className="input task-search" value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="🔍 ค้นหา..."
-            style={{ width: 180, padding: '7px 12px', fontSize: 13 }} />
+            style={{ padding: '7px 12px', fontSize: 13 }} />
 
           <div style={{ display: 'flex', gap: 4 }}>
             {STATUS_TABS.map(t => (

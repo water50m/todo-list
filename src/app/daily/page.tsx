@@ -88,10 +88,10 @@ export default function DailyPage() {
     <>
       <Toaster toasts={toast.toasts} onDismiss={toast.dismiss} />
 
-      <div style={{ display:'flex', flexDirection:'column', gap:24, maxWidth:600 }}>
+      <div className="page-stack daily-container">
 
         {/* Header */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div className="page-header" style={{ alignItems:'center' }}>
           <div>
             <h1 style={{ fontSize:22, fontWeight:600, marginBottom:4 }}>Daily Checklist</h1>
             <div style={{ display:'flex', alignItems:'center', gap:8 }}>

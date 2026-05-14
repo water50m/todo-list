@@ -153,11 +153,11 @@ export default function CalendarPage() {
         onCancel={() => setConfirm(c => ({ ...c, open: false }))}
       />
 
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+      <div className="calendar-layout">
 
         {/* ── Left: Mini Calendar ── */}
-        <div style={{ flexShrink: 0, width: 300 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div className="calendar-sidebar">
+          <div className="page-header" style={{ alignItems: 'center', marginBottom: 16 }}>
             <h1 style={{ fontSize: 22, fontWeight: 600 }}>ปฏิทิน</h1>
             <button className="btn btn-primary btn-sm" onClick={openCreate}>+ นัดหมาย</button>
           </div>
@@ -299,10 +299,8 @@ export default function CalendarPage() {
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)',
             zIndex: 100, backdropFilter: 'blur(2px)',
           }} />
-          <div className="card slide-up" style={{
-            position: 'fixed', top: '10%', left: '40%',
-            transform: 'translate(-50%,-50%)',
-            width: 480, zIndex: 101, padding: 24,
+          <div className="card slide-up calendar-modal" style={{
+            zIndex: 101, padding: 24,
             boxShadow: 'var(--shadow-lg)', maxHeight: '90vh', overflowY: 'auto',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
