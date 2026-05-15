@@ -7,33 +7,12 @@ declare global {
 
 const pool =
   globalThis._pgPool ??
-  new Pool(
-    process.env.DATABASE_URL
-      ? {
-          connectionString: process.env.DATABASE_URL,
-          max: 10,
-          idleTimeoutMillis: 30_000,
-          connectionTimeoutMillis: 5_000,
-          ssl:
-            process.env.DB_SSL === 'true'
-              ? { rejectUnauthorized: false }
-              : false,
-        }
-      : {
-          host: process.env.DB_HOST,
-          port: Number(process.env.DB_PORT) || 5432,
-          user: process.env.DB_USER,
-          password: process.env.DB_PASS,
-          database: process.env.DB_NAME,
-          max: 10,
-          idleTimeoutMillis: 30_000,
-          connectionTimeoutMillis: 5_000,
-          ssl:
-            process.env.DB_SSL === 'true'
-              ? { rejectUnauthorized: false }
-              : false,
-        },
-  );
+  new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 10,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 5_000,
+  });
 
 if (process.env.NODE_ENV !== 'production') {
   globalThis._pgPool = pool;

@@ -7,6 +7,14 @@ export type PresetType = 'daily' | 'weekday' | 'weekend' | 'custom-days';
 export type AppointmentStatus = 'confirmed' | 'pending' | 'cancelled';
 export type RSVPStatus = 'accepted' | 'declined' | 'pending';
 
+export interface User {
+  id: string;
+  name: string;
+  pin_hash: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface Tag {
   id: string;
   user_id: string;

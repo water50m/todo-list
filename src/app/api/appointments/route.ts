@@ -1,18 +1,18 @@
 // app/api/appointments/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { getCurrentUserId } from '@/lib/auth';
 import { ApiResponse, Appointment } from '@/types';
-
-const DEFAULT_USER = '00000000-0000-0000-0000-000000000001';
 
 // GET /api/appointments?from=2026-05-01&to=2026-05-31
 export async function GET(req: NextRequest) {
+  const userId = await getCurrentUserId();
   const { searchParams } = req.nextUrl;
   const from = searchParams.get('from');
   const to = searchParams.get('to');
 
   const conditions = ['a.user_id = $1'];
-  const params: unknown[] = [DEFAULT_USER];
+  const params: unknown[] = [userId];
   let idx = 2;
 
   if (from) { conditions.push(`a.start_at >= $${idx++}`); params.push(from); }
@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
 // POST /api/appointments
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getCurrentUserId();
     const body = await req.json();
     const {
       title, description, location, start_at, end_at,
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
           (user_id,title,description,location,start_at,end_at,is_all_day,status,is_recurring,recur_rule,remind_before_min,notes)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
         [
-          DEFAULT_USER, title.trim(), description || null, location || null,
+          userId, title.trim(), description || null, location || null,
           start_at, end_at, is_all_day ?? false, status || 'confirmed',
           is_recurring ?? false, recur_rule || null, remind_before_min || null, notes || null,
         ]

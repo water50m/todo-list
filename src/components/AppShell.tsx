@@ -8,6 +8,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const canGoBack = pathname !== '/dashboard';
+  const isAuthPage = pathname === '/login';
+
+  if (isAuthPage) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="app-shell">

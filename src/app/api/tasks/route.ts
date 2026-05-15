@@ -1,12 +1,12 @@
 // app/api/tasks/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { getCurrentUserId } from '@/lib/auth';
 import { CreateTaskInput, ApiResponse, Task } from '@/types';
-
-const DEFAULT_USER = '00000000-0000-0000-0000-000000000001';
 
 // GET /api/tasks?status=todo&priority=high&category_id=...&tag_id=...&search=...
 export async function GET(req: NextRequest) {
+  const userId = await getCurrentUserId();
   const { searchParams } = req.nextUrl;
   const status = searchParams.get('status');
   const priority = searchParams.get('priority');
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get('search');
 
   const conditions: string[] = ['t.user_id = $1'];
-  const params: unknown[] = [DEFAULT_USER];
+  const params: unknown[] = [userId];
   let idx = 2;
 
   if (status) { conditions.push(`t.status = $${idx++}`); params.push(status); }
@@ -69,6 +69,7 @@ export async function GET(req: NextRequest) {
 // POST /api/tasks
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getCurrentUserId();
     const body: CreateTaskInput = await req.json();
     const {
       title, description, category_id, priority,
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
         RETURNING *`,
         [
-          DEFAULT_USER, category_id || null, title.trim(), description || null, priority || 'med',
+          userId, category_id || null, title.trim(), description || null, priority || 'med',
           recur_type || 'once',
           recur_dates ? `{${recur_dates.join(',')}}` : null,
           recur_preset || null,

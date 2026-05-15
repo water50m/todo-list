@@ -287,6 +287,18 @@ textarea.input { resize: vertical; }
   border-radius: var(--radius-lg);
 }
 
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-panel {
+  width: min(100%, 380px);
+  padding: 28px;
+}
+
 /* ── Sidebar ── */
 .sidebar {
   position: fixed;

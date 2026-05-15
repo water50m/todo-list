@@ -34,8 +34,7 @@
 ```env
 DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@<DB_HOST>:<DB_PORT>/todo_list
 JWT_SECRET=<LONG_RANDOM_SECRET>
-APP_PORT=3002
-NEXT_PUBLIC_API_URL=http://localhost:3002
+NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
 ตัวอย่างสำหรับ Docker ที่ database อยู่บน host machine:
@@ -43,35 +42,42 @@ NEXT_PUBLIC_API_URL=http://localhost:3002
 ```env
 DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@host.docker.internal:5432/todo_list
 JWT_SECRET=<LONG_RANDOM_SECRET>
-APP_PORT=3002
-NEXT_PUBLIC_API_URL=http://localhost:3002
+NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
 โดยทั่วไป PostgreSQL ใช้ port `5432` เป็นค่า default แต่ถ้า database ใช้ port อื่น ให้เปลี่ยน `<DB_PORT>` ตามจริง
-
-โปรเจกต์ยังรองรับ env แบบแยกค่าเป็น fallback:
-
-```env
-DB_HOST=<DB_HOST>
-DB_PORT=<DB_PORT>
-DB_USER=<DB_USER>
-DB_PASS=<DB_PASSWORD>
-DB_NAME=todo_list
-```
 
 ## Database
 
 ใช้ PostgreSQL database ชื่อ `todo_list`
 
+สร้าง schema ด้วยไฟล์:
+
+```bash
+psql "$DATABASE_URL" -f database/schema.sql
+```
+
+หรือถ้าอยู่ในเครื่อง host:
+
+```bash
+psql -h <DB_HOST> -p <DB_PORT> -U <DB_USER> -d todo_list -f database/schema.sql
+```
+
+schema นี้จะสร้าง `users` และ seed user เริ่มต้น:
+
+```text
+name: Demo User
+pin: 1234
+```
+
 แอปคาดว่าจะมีตารางสำหรับข้อมูลหลักเหล่านี้:
 
+- `users`
 - `tasks`, `subtasks`, `task_tags`
 - `categories`, `tags`
 - `daily_templates`, `template_items`
 - `checklist_logs`, `checklist_item_logs`
 - `appointments`, `appointment_attendees`
-
-หมายเหตุ: ตอนนี้ repo ยังไม่มีไฟล์ migration/schema SQL แนบมา ต้องเตรียม schema ใน PostgreSQL ให้ตรงกับ API routes ก่อนใช้งานจริง
 
 ## Development
 
@@ -90,7 +96,7 @@ npm run dev
 เปิดแอปที่:
 
 ```text
-http://localhost:3002
+http://localhost:3000
 ```
 
 ## Production Build
@@ -113,10 +119,10 @@ docker compose up -d --build
 เปิดแอปที่:
 
 ```text
-http://localhost:3002
+http://localhost:3000
 ```
 
-Docker Compose ของโปรเจกต์นี้ map host port จาก `APP_PORT` ไปยัง container port `3000` ถ้าต้องการเปลี่ยน port ให้แก้ `APP_PORT` และ `NEXT_PUBLIC_API_URL` ใน `.env`
+Docker Compose ของโปรเจกต์นี้ map host port `3000` ไปยัง container port `3000`
 
 หยุด container:
 
@@ -148,4 +154,4 @@ src/
 
 - `.env` ถูก ignore โดย git แล้ว ไม่ควร commit secret จริงเข้า repo
 - ถ้าใช้ Docker บน Windows/Mac แล้ว database อยู่บน host machine ให้ใช้ `host.docker.internal` ใน `DATABASE_URL`
-- โปรเจกต์นี้ใช้ host port `3002` เพื่อหลีกเลี่ยงการชนกับ service อื่นที่ใช้ `3000` หรือ `3001`
+- Docker ใช้ host port `3000` ถ้าเครื่องมี service อื่นใช้ port นี้อยู่ ต้องหยุด service นั้นก่อน

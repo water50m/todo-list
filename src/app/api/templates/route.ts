@@ -1,13 +1,13 @@
 // app/api/templates/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { getCurrentUserId } from '@/lib/auth';
 import { ApiResponse, DailyTemplate } from '@/types';
-
-const DEFAULT_USER = '00000000-0000-0000-0000-000000000001';
 
 // GET /api/templates
 export async function GET() {
   try {
+    const userId = await getCurrentUserId();
     const { rows } = await pool.query<DailyTemplate>(
       `SELECT dt.*,
         json_agg(ti.* ORDER BY ti.time_slot, ti.sort_order) FILTER (WHERE ti.id IS NOT NULL) AS items
@@ -16,7 +16,7 @@ export async function GET() {
        WHERE dt.user_id = $1
        GROUP BY dt.id
        ORDER BY dt.created_at ASC`,
-      [DEFAULT_USER]
+      [userId]
     );
     return NextResponse.json<ApiResponse<DailyTemplate[]>>({ data: rows });
   } catch (err) {
@@ -29,6 +29,7 @@ export async function GET() {
 // body: { action: 'create_template'|'add_item'|'toggle_item'|'delete_item'|'reorder_item', ...payload }
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getCurrentUserId();
     const body = await req.json();
     const { action } = body;
 
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
       const { name, reset_time } = body;
       const { rows } = await pool.query(
         `INSERT INTO daily_templates (user_id, name, reset_time) VALUES ($1,$2,$3) RETURNING *`,
-        [DEFAULT_USER, name || 'New Checklist', reset_time || '00:00']
+        [userId, name || 'New Checklist', reset_time || '00:00']
       );
       return NextResponse.json<ApiResponse<DailyTemplate>>({ data: rows[0] }, { status: 201 });
     }

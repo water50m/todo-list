@@ -1,12 +1,14 @@
 // app/api/tasks/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { getCurrentUserId } from '@/lib/auth';
 import { ApiResponse, Task } from '@/types';
 
 // GET /api/tasks/[id]
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
+    const userId = await getCurrentUserId();
     const { rows } = await pool.query<Task>(
       `SELECT t.*,
         row_to_json(c.*) AS category,
@@ -21,9 +23,9 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       LEFT JOIN task_tags tt ON tt.task_id = t.id
       LEFT JOIN tags tg ON tg.id = tt.tag_id
       LEFT JOIN subtasks s ON s.task_id = t.id
-      WHERE t.id = $1
+      WHERE t.id = $1 AND t.user_id = $2
       GROUP BY t.id, c.id`,
-      [id]
+      [id, userId]
     );
     if (!rows.length) return NextResponse.json<ApiResponse<null>>({ error: 'Not found' }, { status: 404 });
     return NextResponse.json<ApiResponse<Task>>({ data: rows[0] });
@@ -37,6 +39,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
+    const userId = await getCurrentUserId();
     const body = await req.json();
     const allowed = [
       'title','description','status','priority','category_id',
@@ -70,8 +73,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!sets.length) return NextResponse.json<ApiResponse<null>>({ error: 'Nothing to update' }, { status: 400 });
 
     vals.push(id);
+    vals.push(userId);
     const { rows } = await pool.query<Task>(
-      `UPDATE tasks SET ${sets.join(',')} WHERE id = $${idx} RETURNING *`,
+      `UPDATE tasks SET ${sets.join(',')} WHERE id = $${idx++} AND user_id = $${idx} RETURNING *`,
       vals
     );
 
@@ -110,7 +114,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const { rowCount } = await pool.query('DELETE FROM tasks WHERE id = $1', [id]);
+    const userId = await getCurrentUserId();
+    const { rowCount } = await pool.query('DELETE FROM tasks WHERE id = $1 AND user_id = $2', [id, userId]);
     if (!rowCount) return NextResponse.json<ApiResponse<null>>({ error: 'Not found' }, { status: 404 });
     return NextResponse.json<ApiResponse<null>>({ message: 'Deleted' });
   } catch (err) {

@@ -1,6 +1,7 @@
 // app/api/appointments/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { getCurrentUserId } from '@/lib/auth';
 import { ApiResponse, Appointment, AppointmentStatus } from '@/types';
 
 // GET /api/appointments/[id]
@@ -10,6 +11,7 @@ export async function GET(
 ) {
   const { id } = await params;
   try {
+    const userId = await getCurrentUserId();
     const { rows } = await pool.query<Appointment>(
       `SELECT a.*,
         COALESCE(json_agg(jsonb_build_object(
@@ -17,8 +19,8 @@ export async function GET(
         )) FILTER (WHERE aa.id IS NOT NULL),'[]') AS attendees
        FROM appointments a
        LEFT JOIN appointment_attendees aa ON aa.appointment_id = a.id
-       WHERE a.id = $1 GROUP BY a.id`,
-      [id]
+       WHERE a.id = $1 AND a.user_id = $2 GROUP BY a.id`,
+      [id, userId]
     );
     if (!rows.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json<ApiResponse<Appointment>>({ data: rows[0] });
@@ -35,6 +37,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   try {
+    const userId = await getCurrentUserId();
     const body = await req.json();
     const allowed = [
       'title','description','location','start_at','end_at',
@@ -49,8 +52,9 @@ export async function PATCH(
     }
     if (!sets.length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
     vals.push(id);
+    vals.push(userId);
     const { rows } = await pool.query<Appointment>(
-      `UPDATE appointments SET ${sets.join(',')} WHERE id = $${idx} RETURNING *`,
+      `UPDATE appointments SET ${sets.join(',')} WHERE id = $${idx++} AND user_id = $${idx} RETURNING *`,
       vals
     );
     if (!rows.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -91,15 +95,16 @@ export async function DELETE(
   const { id } = await params;
   const cancel = req.nextUrl.searchParams.get('cancel') === 'true';
   try {
+    const userId = await getCurrentUserId();
     if (cancel) {
       const { rows } = await pool.query<Appointment>(
-        `UPDATE appointments SET status = $1 WHERE id = $2 RETURNING *`,
-        ['cancelled' as AppointmentStatus, id]
+        `UPDATE appointments SET status = $1 WHERE id = $2 AND user_id = $3 RETURNING *`,
+        ['cancelled' as AppointmentStatus, id, userId]
       );
       if (!rows.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       return NextResponse.json<ApiResponse<Appointment>>({ data: rows[0], message: 'Cancelled' });
     }
-    const { rowCount } = await pool.query('DELETE FROM appointments WHERE id = $1', [id]);
+    const { rowCount } = await pool.query('DELETE FROM appointments WHERE id = $1 AND user_id = $2', [id, userId]);
     if (!rowCount) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json<ApiResponse<null>>({ message: 'Deleted' });
   } catch (err) {

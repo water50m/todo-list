@@ -1,21 +1,22 @@
 // app/api/checklist/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { getCurrentUserId } from '@/lib/auth';
 import { ApiResponse, ChecklistLog } from '@/types';
 
-const DEFAULT_USER = '00000000-0000-0000-0000-000000000001';
 const DEFAULT_TEMPLATE = '00000000-0000-0000-0000-000000000002';
 
 // GET /api/checklist?date=2026-05-04
 // Returns today's checklist log (creates one if not exists)
 export async function GET(req: NextRequest) {
+  const userId = await getCurrentUserId();
   const date = req.nextUrl.searchParams.get('date') ||
     new Date().toISOString().split('T')[0];
 
   const client = await pool.connect();
   try {
     // Check existing log
-    let { rows } = await client.query<ChecklistLog>(
+    const { rows } = await client.query<ChecklistLog>(
       `SELECT cl.*,
         json_agg(jsonb_build_object(
           'id', cil.id,
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
       JOIN template_items ti ON ti.id = cil.template_item_id
       WHERE cl.user_id = $1 AND cl.log_date = $2 AND cl.template_id = $3
       GROUP BY cl.id`,
-      [DEFAULT_USER, date, DEFAULT_TEMPLATE]
+      [userId, date, DEFAULT_TEMPLATE]
     );
 
     if (rows.length) {
@@ -50,14 +51,14 @@ export async function GET(req: NextRequest) {
     const { rows: prev } = await client.query(
       `SELECT streak_count FROM checklist_logs
        WHERE user_id = $1 AND template_id = $2 AND log_date = $3::date - 1`,
-      [DEFAULT_USER, DEFAULT_TEMPLATE, date]
+      [userId, DEFAULT_TEMPLATE, date]
     );
     const prevStreak = prev[0]?.streak_count ?? 0;
 
     const { rows: logRows } = await client.query<ChecklistLog>(
       `INSERT INTO checklist_logs (user_id, template_id, log_date, total_items, done_items, streak_count)
        VALUES ($1,$2,$3,$4,0,$5) RETURNING *`,
-      [DEFAULT_USER, DEFAULT_TEMPLATE, date, items.length, prevStreak]
+      [userId, DEFAULT_TEMPLATE, date, items.length, prevStreak]
     );
     const log = logRows[0];
 
