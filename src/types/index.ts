@@ -178,6 +178,36 @@ export interface DashboardStats {
   recurring_tasks: Array<{ title: string; completion_rate: number }>;
 }
 
+export interface CalendarChecklistEvent {
+  id: string;
+  template_id: string;
+  template_name: string;
+  done_items: number;
+  total_items: number;
+}
+
+export interface CalendarTaskEvent {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  priority: Priority;
+  date: string;
+}
+
+export interface CalendarDayEvents {
+  date: string;
+  appointments: Appointment[];
+  checklists: CalendarChecklistEvent[];
+  due_tasks: CalendarTaskEvent[];
+  done_tasks: CalendarTaskEvent[];
+}
+
+export interface CalendarEventsResponse {
+  from: string;
+  to: string;
+  days: CalendarDayEvents[];
+}
+
 export interface ApiResponse<T> {
   data?: T;
   error?: string;

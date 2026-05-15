@@ -1,7 +1,8 @@
 // app/calendar/page.tsx
 'use client';
-import { useState, useEffect } from 'react';
-import { Appointment, AppointmentStatus } from '@/types';
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Appointment, AppointmentStatus, CalendarDayEvents, CalendarEventsResponse } from '@/types';
 import Toaster from '@/components/Toaster';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
@@ -30,15 +31,43 @@ const EMPTY_FORM = {
   remind_before_min: 15, notes: '', is_recurring: false, recur_rule: '',
 };
 
+const EMPTY_DAY: CalendarDayEvents = {
+  date: '',
+  appointments: [],
+  checklists: [],
+  due_tasks: [],
+  done_tasks: [],
+};
+
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 }
+
 function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
+
+function dateKey(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
 function toLocalISO(d: Date) {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function progressColor(done: number, total: number) {
+  if (!total) return 'var(--text-muted)';
+  const pct = done / total;
+  if (pct >= 1) return 'var(--success)';
+  if (pct >= 0.7) return 'var(--med)';
+  if (pct > 0) return 'var(--high)';
+  return 'var(--danger)';
+}
+
+function dayTitle(date: Date) {
+  return date.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 export default function CalendarPage() {
@@ -49,7 +78,14 @@ export default function CalendarPage() {
   const [month, setMonth]   = useState(today.getMonth());
   const [selected, setSelected] = useState<Date>(today);
   const [appts, setAppts]   = useState<Appointment[]>([]);
+  const [calendar, setCalendar] = useState<CalendarEventsResponse | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [filters, setFilters] = useState({
+    appointments: true,
+    checklists: true,
+    tasks: true,
+  });
 
   const [showForm, setShowForm]     = useState(false);
   const [editId, setEditId]         = useState<string | null>(null);
@@ -62,30 +98,49 @@ export default function CalendarPage() {
   const [newAttName, setNewAttName] = useState('');
   const [newAttEmail, setNewAttEmail] = useState('');
 
-  const fetchAppts = async () => {
+  const monthFrom = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const monthTo = new Date(year, month + 1, 0).toISOString().split('T')[0];
+
+  const fetchCalendar = useCallback(async () => {
     setLoading(true);
-    const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-    const to   = new Date(year, month + 1, 0).toISOString().split('T')[0];
-    const res  = await fetch(`/api/appointments?from=${from}&to=${to}`);
-    const data = await res.json();
-    setAppts(data.data || []);
+    const [apptRes, eventRes] = await Promise.all([
+      fetch(`/api/appointments?from=${monthFrom}&to=${monthTo}`).then(r => r.json()),
+      fetch(`/api/calendar/events?from=${monthFrom}&to=${monthTo}`).then(r => r.json()),
+    ]);
+    setAppts(apptRes.data || []);
+    setCalendar(eventRes.data || null);
     setLoading(false);
-  };
-  useEffect(() => { fetchAppts(); }, [year, month]);
+  }, [monthFrom, monthTo]);
 
-  const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
-  const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
+  useEffect(() => { fetchCalendar(); }, [fetchCalendar]);
 
-  const firstDay    = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const hasAppt = (d: number) => appts.some(a => a.status !== 'cancelled' && sameDay(new Date(a.start_at), new Date(year, month, d)));
+  const dayMap = useMemo(() => {
+    const map = new Map<string, CalendarDayEvents>();
+    for (const day of calendar?.days || []) map.set(day.date, day);
+    return map;
+  }, [calendar]);
+
+  const selectedKey = dateKey(selected);
+  const selectedEvents = dayMap.get(selectedKey) || { ...EMPTY_DAY, date: selectedKey };
   const selectedAppts = appts.filter(a => sameDay(new Date(a.start_at), selected)).sort(
     (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
   );
 
-  const openCreate = () => {
-    // Pre-fill start_at with selected date 09:00
-    const d = new Date(selected);
+  const changeMonth = (delta: number) => {
+    const next = new Date(year, month + delta, 1);
+    const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+    setYear(next.getFullYear());
+    setMonth(next.getMonth());
+    setSelected(new Date(next.getFullYear(), next.getMonth(), Math.min(selected.getDate(), lastDay)));
+  };
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthDays = Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1));
+  const hasAppt = (d: number) => appts.some(a => a.status !== 'cancelled' && sameDay(new Date(a.start_at), new Date(year, month, d)));
+
+  const openCreate = (date = selected) => {
+    const d = new Date(date);
     d.setHours(9, 0, 0, 0);
     const e = new Date(d); e.setHours(10, 0, 0, 0);
     setForm({ ...EMPTY_FORM, start_at: toLocalISO(d), end_at: toLocalISO(e) });
@@ -125,7 +180,7 @@ export default function CalendarPage() {
     if (res.ok) {
       toast.show(editId ? 'แก้ไขนัดหมายแล้ว ✓' : 'สร้างนัดหมายแล้ว ✓');
       setShowForm(false); setEditId(null);
-      fetchAppts();
+      fetchCalendar();
     } else {
       toast.show('เกิดข้อผิดพลาด', 'error');
     }
@@ -135,7 +190,7 @@ export default function CalendarPage() {
     const url = soft ? `/api/appointments/${id}?cancel=true` : `/api/appointments/${id}`;
     await fetch(url, { method: soft ? 'PATCH' : 'DELETE' });
     toast.show(soft ? 'ยกเลิกนัดหมายแล้ว' : 'ลบนัดหมายแล้ว', 'info');
-    fetchAppts();
+    fetchCalendar();
   };
 
   const setF = (partial: Partial<typeof form>) => setForm(f => ({ ...f, ...partial }));
@@ -153,159 +208,309 @@ export default function CalendarPage() {
         onCancel={() => setConfirm(c => ({ ...c, open: false }))}
       />
 
-      <div className="calendar-layout">
+      <div className="page-stack">
+        <div className="page-header" style={{ alignItems:'flex-end' }}>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 600 }}>นัดหมาย</h1>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+              จัดการนัดหมายแยกจากปฏิทินรวม
+            </p>
+          </div>
+          <button className="btn btn-primary" onClick={() => openCreate(selected)}>+ นัดหมาย</button>
+        </div>
 
-        {/* ── Left: Mini Calendar ── */}
-        <div className="calendar-sidebar">
-          <div className="page-header" style={{ alignItems: 'center', marginBottom: 16 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 600 }}>ปฏิทิน</h1>
-            <button className="btn btn-primary btn-sm" onClick={openCreate}>+ นัดหมาย</button>
+        <div className="calendar-layout">
+          <div className="calendar-sidebar">
+            <div className="card" style={{ padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => changeMonth(-1)}>‹</button>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{TH_MONTHS[month]} {year}</span>
+                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => changeMonth(1)}>›</button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
+                {TH_DAYS.map(d => (
+                  <div key={d} style={{ textAlign: 'center', fontSize: 10, color: 'var(--text-muted)', padding: '3px 0' }}>{d}</div>
+                ))}
+                {Array.from({ length: firstDay }).map((_, i) => <div key={`b${i}`} />)}
+                {monthDays.map(thisDate => {
+                  const d = thisDate.getDate();
+                  const isSel = sameDay(thisDate, selected);
+                  const isToday = sameDay(thisDate, today);
+                  const hasEvt = hasAppt(d);
+                  return (
+                    <div key={d} onClick={() => setSelected(thisDate)} style={{
+                      height: 32, display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'center',
+                      borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                      background: isSel ? 'var(--accent)' : 'transparent',
+                      color: isSel ? 'var(--accent-fg)' : isToday ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      fontWeight: isToday ? 700 : 400, fontSize: 13,
+                      border: isToday && !isSel ? '1.5px solid var(--border)' : 'none',
+                      transition: 'all 0.1s', gap: 1,
+                    }}>
+                      {d}
+                      {hasEvt && (
+                        <div style={{
+                          width: 4, height: 4, borderRadius: '50%',
+                          background: isSel ? 'rgba(255,255,255,0.7)' : 'var(--med)',
+                        }} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border-subtle)', fontSize: 12, color: 'var(--text-muted)' }}>
+                {appts.filter(a => a.status !== 'cancelled').length} นัดหมายในเดือนนี้
+              </div>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ marginBottom: 16, display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start' }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 600 }}>{dayTitle(selected)}</h2>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {selectedAppts.filter(a => a.status !== 'cancelled').length} นัดหมาย
+                </p>
+              </div>
+              <button className="btn btn-secondary btn-sm" onClick={() => openCreate(selected)}>+ เพิ่มนัดหมาย</button>
+            </div>
+
+            {loading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
+                <span className="spinner" style={{ width: 20, height: 20 }} />
+              </div>
+            ) : selectedAppts.length === 0 ? (
+              <div className="card" style={{ padding: 40, textAlign: 'center' }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>📅</div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>ไม่มีนัดหมายในวันนี้</div>
+                <button className="btn btn-secondary btn-sm" onClick={() => openCreate(selected)}>+ เพิ่มนัดหมาย</button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {selectedAppts.map(a => (
+                  <div key={a.id} className="card fade-in" style={{
+                    padding: '14px 16px',
+                    borderLeft: `3px solid ${STATUS_COLOR[a.status]}`,
+                    opacity: a.status === 'cancelled' ? 0.5 : 1,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 5 }}>{a.title}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                          {a.is_all_day
+                            ? <span>📅 ทั้งวัน</span>
+                            : <span>🕐 {fmtTime(a.start_at)} - {fmtTime(a.end_at)}</span>}
+                          {a.location && <span>📍 {a.location}</span>}
+                          {a.remind_before_min ? <span>🔔 {a.remind_before_min} นาทีก่อน</span> : null}
+                          {a.is_recurring && <span>🔁 ซ้ำ</span>}
+                        </div>
+                        {a.notes && (
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 5 }}>{a.notes}</div>
+                        )}
+                        {(a.attendees?.length || 0) > 0 && (
+                          <div style={{ marginTop: 7, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                            {a.attendees!.map(att => (
+                              <span key={att.id} className="badge" style={{
+                                borderColor: 'var(--border)', background: 'var(--bg-muted)', color: 'var(--text-secondary)',
+                              }}>👤 {att.name}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                        <span className="badge" style={{
+                          borderColor: STATUS_COLOR[a.status] + '66',
+                          background: STATUS_COLOR[a.status] + '18',
+                          color: STATUS_COLOR[a.status],
+                        }}>{STATUS_LABEL[a.status]}</span>
+
+                        {a.status !== 'cancelled' && (
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button className="btn btn-ghost btn-icon btn-sm"
+                              style={{ fontSize: 13, color: 'var(--text-muted)' }}
+                              onClick={() => openEdit(a)} title="แก้ไข">✏</button>
+                            <button className="btn btn-ghost btn-icon btn-sm"
+                              style={{ fontSize: 13, color: 'var(--text-muted)' }}
+                              onClick={() => setConfirm({ open: true, id: a.id, soft: true })} title="ยกเลิกนัด">🚫</button>
+                            <button className="btn btn-ghost btn-icon btn-sm"
+                              style={{ fontSize: 13, color: 'var(--text-muted)' }}
+                              onClick={() => setConfirm({ open: true, id: a.id, soft: false })} title="ลบ">🗑</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="divider" />
+
+        <section className="page-stack">
+          <div className="page-header" style={{ alignItems:'flex-end' }}>
+            <div>
+              <h2 style={{ fontSize: 20, fontWeight: 600 }}>ปฏิทินรวม</h2>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+                รวม daily checklist, task และนัดหมายในเดือนเดียวกัน
+              </p>
+            </div>
+            <div className="toolbar">
+              {([
+                ['appointments', 'นัดหมาย'],
+                ['checklists', 'Daily'],
+                ['tasks', 'Tasks'],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  className={`btn btn-sm ${filters[key] ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => setFilters(f => ({ ...f, [key]: !f[key] }))}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="card" style={{ padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <button className="btn btn-ghost btn-icon btn-sm" onClick={prevMonth}>‹</button>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{TH_MONTHS[month]} {year}</span>
-              <button className="btn btn-ghost btn-icon btn-sm" onClick={nextMonth}>›</button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
-              {TH_DAYS.map(d => (
-                <div key={d} style={{ textAlign: 'center', fontSize: 10, color: 'var(--text-muted)', padding: '3px 0' }}>{d}</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(7, minmax(0, 1fr))', gap: 6 }}>
+              {TH_DAYS.map(day => (
+                <div key={day} style={{ fontSize:11, color:'var(--text-muted)', textAlign:'center', padding:'4px 0' }}>{day}</div>
               ))}
-              {Array.from({ length: firstDay }).map((_, i) => <div key={`b${i}`} />)}
-              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => {
-                const thisDate = new Date(year, month, d);
-                const isSel   = sameDay(thisDate, selected);
+              {Array.from({ length: firstDay }).map((_, i) => (
+                <div key={`blank-${i}`} style={{ minHeight: 112 }} />
+              ))}
+              {monthDays.map(thisDate => {
+                const key = dateKey(thisDate);
+                const events = dayMap.get(key) || { ...EMPTY_DAY, date: key };
+                const isSelected = sameDay(thisDate, selected);
                 const isToday = sameDay(thisDate, today);
-                const hasEvt  = hasAppt(d);
                 return (
-                  <div key={d} onClick={() => setSelected(thisDate)} style={{
-                    height: 32, display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center',
-                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    background: isSel ? 'var(--accent)' : 'transparent',
-                    color: isSel ? 'var(--accent-fg)' : isToday ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontWeight: isToday ? 700 : 400, fontSize: 13,
-                    border: isToday && !isSel ? '1.5px solid var(--border)' : 'none',
-                    transition: 'all 0.1s', gap: 1,
-                  }}>
-                    {d}
-                    {hasEvt && (
-                      <div style={{
-                        width: 4, height: 4, borderRadius: '50%',
-                        background: isSel ? 'rgba(255,255,255,0.7)' : 'var(--med)',
-                      }} />
-                    )}
-                  </div>
+                  <button
+                    key={key}
+                    className="calendar-day-cell"
+                    onClick={() => setSelected(thisDate)}
+                    style={{
+                      minHeight: 118,
+                      textAlign:'left',
+                      padding: 9,
+                      borderRadius:'var(--radius-md)',
+                      border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border-subtle)'}`,
+                      background: isSelected ? 'var(--accent-soft)' : 'rgba(255,255,255,0.72)',
+                      boxShadow: isSelected ? 'var(--shadow-sm)' : 'none',
+                      cursor:'pointer',
+                    }}
+                  >
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                      <span style={{
+                        width:24, height:24, borderRadius:'50%',
+                        display:'inline-flex', alignItems:'center', justifyContent:'center',
+                        fontSize:12, fontWeight:isToday ? 700 : 500,
+                        color: isToday ? 'var(--accent-fg)' : 'var(--text-primary)',
+                        background: isToday ? 'var(--accent)' : 'transparent',
+                      }}>{thisDate.getDate()}</span>
+                      {filters.appointments && events.appointments.length > 0 && (
+                        <span style={{ fontSize:10, color:'var(--text-muted)' }}>{events.appointments.length} นัด</span>
+                      )}
+                    </div>
+
+                    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                      {filters.checklists && events.checklists.slice(0, 2).map(item => (
+                        <div key={item.id} style={{ display:'flex', alignItems:'center', gap:5, minWidth:0 }}>
+                          <span style={{
+                            width:7, height:7, borderRadius:'50%', flexShrink:0,
+                            background: progressColor(item.done_items, item.total_items),
+                          }} />
+                          <span style={{ fontSize:10, color:'var(--text-secondary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                            {item.template_name} {item.done_items}/{item.total_items}
+                          </span>
+                        </div>
+                      ))}
+                      {filters.tasks && events.due_tasks.length > 0 && (
+                        <div style={{ fontSize:10, color:'var(--high)' }}>งาน {events.due_tasks.length}</div>
+                      )}
+                      {filters.tasks && events.done_tasks.length > 0 && (
+                        <div style={{ fontSize:10, color:'var(--success)' }}>เสร็จ {events.done_tasks.length}</div>
+                      )}
+                    </div>
+                  </button>
                 );
               })}
             </div>
-
-            {/* Month summary */}
-            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border-subtle)', fontSize: 12, color: 'var(--text-muted)' }}>
-              {appts.filter(a => a.status !== 'cancelled').length} นัดหมายในเดือนนี้
-            </div>
-          </div>
-        </div>
-
-        {/* ── Right: Day appointments ── */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 600 }}>
-              {selected.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </h2>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-              {selectedAppts.filter(a => a.status !== 'cancelled').length} นัดหมาย
-            </p>
           </div>
 
-          {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-              <span className="spinner" style={{ width: 20, height: 20 }} />
-            </div>
-          ) : selectedAppts.length === 0 ? (
-            <div className="card" style={{ padding: 40, textAlign: 'center' }}>
-              <div style={{ fontSize: 28, marginBottom: 10 }}>📅</div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>ไม่มีนัดหมายในวันนี้</div>
-              <button className="btn btn-secondary btn-sm" onClick={openCreate}>+ เพิ่มนัดหมาย</button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {selectedAppts.map(a => (
-                <div key={a.id} className="card fade-in" style={{
-                  padding: '14px 16px',
-                  borderLeft: `3px solid ${STATUS_COLOR[a.status]}`,
-                  opacity: a.status === 'cancelled' ? 0.5 : 1,
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 5 }}>{a.title}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                        {a.is_all_day
-                          ? <span>📅 ทั้งวัน</span>
-                          : <span>🕐 {fmtTime(a.start_at)} – {fmtTime(a.end_at)}</span>}
-                        {a.location && <span>📍 {a.location}</span>}
-                        {a.remind_before_min ? <span>🔔 {a.remind_before_min} นาทีก่อน</span> : null}
-                        {a.is_recurring && <span>🔁 ซ้ำ</span>}
-                      </div>
-                      {a.notes && (
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 5 }}>{a.notes}</div>
-                      )}
-                      {(a.attendees?.length || 0) > 0 && (
-                        <div style={{ marginTop: 7, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                          {a.attendees!.map(att => (
-                            <span key={att.id} className="badge" style={{
-                              borderColor: 'var(--border)', background: 'var(--bg-muted)', color: 'var(--text-secondary)',
-                            }}>👤 {att.name}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-                      <span className="badge" style={{
-                        borderColor: STATUS_COLOR[a.status] + '66',
-                        background: STATUS_COLOR[a.status] + '18',
-                        color: STATUS_COLOR[a.status],
-                      }}>{STATUS_LABEL[a.status]}</span>
-
-                      {a.status !== 'cancelled' && (
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn btn-ghost btn-icon btn-sm"
-                            style={{ fontSize: 13, color: 'var(--text-muted)' }}
-                            onClick={() => openEdit(a)} title="แก้ไข">✏️</button>
-                          <button className="btn btn-ghost btn-icon btn-sm"
-                            style={{ fontSize: 13, color: 'var(--text-muted)' }}
-                            onClick={() => setConfirm({ open: true, id: a.id, soft: true })} title="ยกเลิกนัด">🚫</button>
-                          <button className="btn btn-ghost btn-icon btn-sm"
-                            style={{ fontSize: 13, color: 'var(--text-muted)' }}
-                            onClick={() => setConfirm({ open: true, id: a.id, soft: false })} title="ลบ">🗑</button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+          <div className="card" style={{ padding: '16px 20px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:12 }}>
+              <div>
+                <div style={{ fontSize:14, fontWeight:600 }}>{dayTitle(selected)}</div>
+                <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
+                  เลือกจากช่องวันในปฏิทินเพื่อดูรายละเอียดหรือเพิ่มนัดหมาย
                 </div>
-              ))}
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={() => openCreate(selected)}>+ เพิ่มนัดหมายวันนี้</button>
             </div>
-          )}
-        </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:12 }}>
+              <div>
+                <div className="section-label" style={{ marginBottom:8 }}>Daily Checklist</div>
+                {selectedEvents.checklists.length === 0 ? (
+                  <div style={{ fontSize:12, color:'var(--text-muted)' }}>ไม่มี checklist log</div>
+                ) : selectedEvents.checklists.map(item => (
+                  <div key={item.id} style={{ fontSize:12, marginBottom:6, display:'flex', alignItems:'center', gap:7 }}>
+                    <span style={{ width:8, height:8, borderRadius:'50%', background:progressColor(item.done_items, item.total_items) }} />
+                    <span>{item.template_name} {item.done_items}/{item.total_items}</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="section-label" style={{ marginBottom:8 }}>Tasks</div>
+                {[...selectedEvents.due_tasks, ...selectedEvents.done_tasks].length === 0 ? (
+                  <div style={{ fontSize:12, color:'var(--text-muted)' }}>ไม่มี task ในวันนี้</div>
+                ) : (
+                  <>
+                    {selectedEvents.due_tasks.map(task => (
+                      <div key={`due-${task.id}`} style={{ fontSize:12, marginBottom:6, color:'var(--high)' }}>• {task.title}</div>
+                    ))}
+                    {selectedEvents.done_tasks.map(task => (
+                      <div key={`done-${task.id}`} style={{ fontSize:12, marginBottom:6, color:'var(--success)' }}>✓ {task.title}</div>
+                    ))}
+                  </>
+                )}
+              </div>
+              <div>
+                <div className="section-label" style={{ marginBottom:8 }}>นัดหมาย</div>
+                {selectedEvents.appointments.length === 0 ? (
+                  <div style={{ fontSize:12, color:'var(--text-muted)' }}>ไม่มีนัดหมาย</div>
+                ) : selectedEvents.appointments.map(a => (
+                  <div key={a.id} style={{ fontSize:12, marginBottom:6 }}>
+                    <span style={{ color:'var(--text-muted)' }}>{fmtTime(a.start_at)}</span> {a.title}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
-      {/* ── Create/Edit Form Modal ── */}
       {showForm && (
         <>
           <div onClick={() => setShowForm(false)} style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)',
             zIndex: 100, backdropFilter: 'blur(2px)',
           }} />
-          <div className="card slide-up calendar-modal" style={{
+          <div className="card calendar-modal" style={{
             zIndex: 101, padding: 24,
-            boxShadow: 'var(--shadow-lg)', maxHeight: '90vh', overflowY: 'auto',
+            boxShadow: 'var(--shadow-lg)', overflowY: 'auto',
+            animation: 'fadeIn 0.18s ease both',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ fontSize: 16, fontWeight: 600 }}>{editId ? 'แก้ไขนัดหมาย' : 'เพิ่มนัดหมาย'}</h3>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowForm(false)}>✕</button>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowForm(false)}>x</button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -368,7 +573,7 @@ export default function CalendarPage() {
                 <input className="input" value={form.recur_rule} onChange={e => setF({ recur_rule: e.target.value })}
                   placeholder="iCal RRULE เช่น FREQ=WEEKLY;BYDAY=MO" style={{ fontSize: 12 }} />
               )}
-              {/* Attendees */}
+
               <div>
                 <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
                   ผู้เข้าร่วม ({attendees.length} คน)
@@ -383,7 +588,7 @@ export default function CalendarPage() {
                       }}>
                         <span style={{ fontSize: 13, flex: 1 }}>👤 {att.name}{att.email && ` (${att.email})`}</span>
                         <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14 }}
-                          onClick={() => setAttendees(prev => prev.filter((_, j) => j !== i))}>✕</button>
+                          onClick={() => setAttendees(prev => prev.filter((_, j) => j !== i))}>x</button>
                       </div>
                     ))}
                   </div>
@@ -408,13 +613,12 @@ export default function CalendarPage() {
                     }}>+ เพิ่ม</button>
                 </div>
               </div>
-
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
               <button className="btn btn-secondary" onClick={() => setShowForm(false)}>ยกเลิก</button>
               <button className="btn btn-primary" onClick={saveAppt} disabled={saving}>
-                {saving ? <><span className="spinner" /> กำลังบันทึก...</> : (editId ? '✓ บันทึก' : '+ เพิ่ม')}
+                {saving ? <><span className="spinner" /> กำลังบันทึก...</> : (editId ? 'บันทึก' : '+ เพิ่ม')}
               </button>
             </div>
           </div>

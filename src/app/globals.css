@@ -273,9 +273,19 @@ textarea.input { resize: vertical; }
   position: fixed;
   top: 50%;
   left: 50%;
-  width: min(480px, calc(100vw - 32px));
-  max-height: min(90vh, 720px);
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
   transform: translate(-50%, -50%);
+}
+
+.calendar-day-cell {
+  font-family: var(--font-body);
+  color: var(--text-primary);
+}
+
+.calendar-day-cell:hover {
+  border-color: var(--accent) !important;
+  box-shadow: var(--shadow-sm) !important;
 }
 
 .task-drawer {
@@ -470,6 +480,10 @@ textarea.input { resize: vertical; }
   .calendar-layout {
     grid-template-columns: 1fr;
   }
+
+  .calendar-day-cell {
+    min-height: 96px !important;
+  }
 }
 
 @media (max-width: 640px) {
@@ -511,6 +525,11 @@ textarea.input { resize: vertical; }
   .dashboard-stats,
   .quick-actions-grid {
     grid-template-columns: 1fr;
+  }
+
+  .calendar-day-cell {
+    min-height: 72px !important;
+    padding: 6px !important;
   }
 
   .card {

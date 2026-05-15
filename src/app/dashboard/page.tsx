@@ -76,10 +76,67 @@ function MiniLineChart({ data }: { data: Array<{date:string; done:number; total:
   );
 }
 
+function UpcomingAppointmentsCard({ appointments, nowMs, onOpen }: { appointments: Appointment[]; nowMs: number; onOpen: () => void }) {
+  return (
+    <div className="card" style={{ padding:'16px 20px' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+        <div style={{ fontSize:13, fontWeight:600 }}>นัดหมายที่กำลังจะมา (7 วัน)</div>
+        <button className="btn btn-ghost btn-sm" onClick={onOpen}>
+          ดูทั้งหมด →
+        </button>
+      </div>
+      {appointments.length === 0 ? (
+        <div style={{ fontSize:12, color:'var(--text-muted)', padding:'4px 0' }}>ไม่มีนัดหมายในช่วงนี้</div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {appointments.map((a: Appointment) => {
+            const start = new Date(a.start_at);
+            const diff  = Math.ceil((start.getTime() - nowMs) / 86400000);
+            return (
+              <div key={a.id} onClick={onOpen}
+                style={{
+                  display:'flex', alignItems:'center', gap:14,
+                  padding:'10px 14px', background:'var(--bg)',
+                  borderRadius:'var(--radius-md)', border:'1px solid var(--border-subtle)',
+                  cursor:'pointer', transition:'box-shadow 0.12s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-sm)'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
+                <div style={{ textAlign:'center', width:36, flexShrink:0 }}>
+                  <div style={{ fontSize:18, fontWeight:700, lineHeight:1 }}>{start.getDate()}</div>
+                  <div style={{ fontSize:10, color:'var(--text-muted)' }}>
+                    {start.toLocaleDateString('th-TH', { month:'short' })}
+                  </div>
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:500 }}>{a.title}</div>
+                  <div style={{ fontSize:11, color:'var(--text-secondary)', marginTop:1 }}>
+                    {start.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' })}
+                    {a.location && ` · ${a.location}`}
+                  </div>
+                </div>
+                <span className="badge" style={{
+                  borderColor: diff===0 ? 'var(--urgent)' : diff<=2 ? '#FDE68A' : 'var(--border)',
+                  background:  diff===0 ? 'var(--urgent-bg)' : diff<=2 ? 'var(--high-bg)' : 'var(--bg-muted)',
+                  color:       diff===0 ? 'var(--urgent)' : diff<=2 ? 'var(--high)' : 'var(--text-muted)',
+                  flexShrink:0,
+                }}>
+                  {diff===0 ? 'วันนี้' : diff===1 ? 'พรุ่งนี้' : `${diff} วัน`}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [stats, setStats]   = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [nowMs] = useState(() => Date.now());
 
   useEffect(() => {
     fetch('/api/dashboard').then(r => r.json()).then(d => {
@@ -117,19 +174,23 @@ export default function DashboardPage() {
         </button>
       </div>
 
+      {stats.upcoming_appointments.length > 0 && (
+        <UpcomingAppointmentsCard appointments={stats.upcoming_appointments} nowMs={nowMs} onOpen={() => router.push('/calendar')} />
+      )}
+
       {/* Stat cards — clickable to filter tasks */}
       <div className="dashboard-stats">
-        <StatCard value={stats.total_tasks} label="งานทั้งหมด" sub="รายการที่สร้าง"
-          onClick={() => router.push('/tasks')} />
+        <StatCard value={`🔥 ${stats.streak_count}`} label="Daily Streak"
+          sub="วันติดต่อกัน" accent="var(--high)"
+          onClick={() => router.push('/daily')} />
         <StatCard value={`${stats.completion_rate}%`} label="Completion Rate"
           sub={`เสร็จ ${stats.done_tasks} รายการ`} accent="var(--success)"
           onClick={() => router.push('/tasks?status=done')} />
         <StatCard value={stats.overdue_tasks} label="เกินกำหนด" sub="ต้องรีบทำ"
           accent={stats.overdue_tasks > 0 ? 'var(--danger)' : undefined}
           onClick={() => router.push('/tasks?status=todo')} />
-        <StatCard value={`🔥 ${stats.streak_count}`} label="Daily Streak"
-          sub="วันติดต่อกัน" accent="var(--high)"
-          onClick={() => router.push('/daily')} />
+        <StatCard value={stats.total_tasks} label="งานทั้งหมด" sub="รายการที่สร้าง"
+          onClick={() => router.push('/tasks')} />
       </div>
 
       {/* Charts row */}
@@ -189,58 +250,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Upcoming appointments */}
-      <div className="card" style={{ padding:'16px 20px' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-          <div style={{ fontSize:13, fontWeight:600 }}>นัดหมายที่กำลังจะมา (7 วัน)</div>
-          <button className="btn btn-ghost btn-sm" onClick={() => router.push('/calendar')}>
-            ดูทั้งหมด →
-          </button>
-        </div>
-        {stats.upcoming_appointments.length === 0 ? (
-          <div style={{ fontSize:12, color:'var(--text-muted)', padding:'4px 0' }}>ไม่มีนัดหมายในช่วงนี้</div>
-        ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {stats.upcoming_appointments.map((a: Appointment) => {
-              const start = new Date(a.start_at);
-              const diff  = Math.ceil((start.getTime() - Date.now()) / 86400000);
-              return (
-                <div key={a.id} onClick={() => router.push('/calendar')}
-                  style={{
-                    display:'flex', alignItems:'center', gap:14,
-                    padding:'10px 14px', background:'var(--bg)',
-                    borderRadius:'var(--radius-md)', border:'1px solid var(--border-subtle)',
-                    cursor:'pointer', transition:'box-shadow 0.12s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-sm)'}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-                  <div style={{ textAlign:'center', width:36, flexShrink:0 }}>
-                    <div style={{ fontSize:18, fontWeight:700, lineHeight:1 }}>{start.getDate()}</div>
-                    <div style={{ fontSize:10, color:'var(--text-muted)' }}>
-                      {start.toLocaleDateString('th-TH', { month:'short' })}
-                    </div>
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:500 }}>{a.title}</div>
-                    <div style={{ fontSize:11, color:'var(--text-secondary)', marginTop:1 }}>
-                      {start.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' })}
-                      {a.location && ` · ${a.location}`}
-                    </div>
-                  </div>
-                  <span className="badge" style={{
-                    borderColor: diff===0 ? 'var(--urgent)' : diff<=2 ? '#FDE68A' : 'var(--border)',
-                    background:  diff===0 ? 'var(--urgent-bg)' : diff<=2 ? 'var(--high-bg)' : 'var(--bg-muted)',
-                    color:       diff===0 ? 'var(--urgent)' : diff<=2 ? 'var(--high)' : 'var(--text-muted)',
-                    flexShrink:0,
-                  }}>
-                    {diff===0 ? 'วันนี้' : diff===1 ? 'พรุ่งนี้' : `${diff} วัน`}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {stats.upcoming_appointments.length === 0 && (
+        <UpcomingAppointmentsCard appointments={stats.upcoming_appointments} nowMs={nowMs} onOpen={() => router.push('/calendar')} />
+      )}
 
       {/* Quick actions */}
       <div className="quick-actions-grid">
