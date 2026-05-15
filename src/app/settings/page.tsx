@@ -1,14 +1,13 @@
 // app/settings/page.tsx
 'use client';
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { DailyTemplate, TemplateItem, Category, Tag } from '@/types';
 import Toaster from '@/components/Toaster';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import ChecklistItemModal from '@/components/ChecklistItemModal';
 import { useToast } from '@/hooks/useToast';
 
-const SLOT_LABEL: Record<string, string> = {
-  morning: '🌅 เช้า', afternoon: '🌞 กลางวัน', evening: '🌙 เย็น',
-};
 const PALETTE = [
   { bg:'#E6F1FB', text:'#0C447C', border:'#B5D4F4', dot:'#378ADD' },
   { bg:'#E1F5EE', text:'#085041', border:'#9FE1CB', dot:'#1D9E75' },
@@ -20,6 +19,23 @@ const PALETTE = [
   { bg:'#FCEBEB', text:'#791F1F', border:'#F7C1C1', dot:'#C93535' },
 ];
 const CAT_COLORS = PALETTE.map(p => p.dot);
+const WEEKDAYS = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+function scheduleLabel(item: TemplateItem) {
+  if (item.recur_type === 'once') return item.recur_start ? `วันที่ ${item.recur_start}` : 'วันเดียว';
+  if (item.recur_type === 'multi') return `${item.recur_dates?.length || 0} วันที่เลือก`;
+  if (item.recur_type === 'custom') {
+    const unit = { day:'วัน', week:'สัปดาห์', month:'เดือน' }[item.recur_interval_unit || 'day'];
+    return `ทุก ${item.recur_interval || 1} ${unit}`;
+  }
+  if (item.recur_preset === 'weekday') return 'จันทร์-ศุกร์';
+  if (item.recur_preset === 'weekend') return 'เสาร์-อาทิตย์';
+  if (item.recur_preset === 'custom-days') {
+    const days = item.recur_weekdays?.map(day => WEEKDAYS[day]).join(', ');
+    return days ? `ทุก ${days}` : 'เลือกวันในสัปดาห์';
+  }
+  return 'ทุกวัน';
+}
 
 type SettingsTab = 'templates' | 'categories' | 'tags';
 
@@ -39,8 +55,11 @@ export default function SettingsPage() {
   const [newTmplTime, setNewTmplTime]   = useState('00:00');
   const [addingTmpl, setAddingTmpl]     = useState(false);
   const [expandedTmpl, setExpanded]     = useState<string|null>(null);
-  const [itemInputs, setItemInputs]     = useState<Record<string,{title:string;slot:string}>>({});
-  const [editingItem, setEditingItem]   = useState<{id:string;title:string;slot:string}|null>(null);
+  const [checklistEditor, setChecklistEditor] = useState<{
+    open: boolean;
+    templateId: string;
+    item?: TemplateItem | null;
+  }>({ open:false, templateId:'', item:null });
 
   // category form
   const [newCatName, setNewCatName]     = useState('');
@@ -83,29 +102,6 @@ export default function SettingsPage() {
     });
     if (res.ok) { toast.show('สร้าง template แล้ว ✓'); setNewTmplName(''); fetchAll(); }
     setAddingTmpl(false);
-  };
-
-  const addItem = async (templateId: string) => {
-    const inp = itemInputs[templateId];
-    if (!inp?.title?.trim()) return;
-    const res = await fetch('/api/templates', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'add_item', template_id:templateId, title:inp.title.trim(), time_slot:inp.slot||'morning' }),
-    });
-    if (res.ok) {
-      toast.show('เพิ่มรายการแล้ว ✓');
-      setItemInputs(prev => ({ ...prev, [templateId]:{ title:'', slot:'morning' } }));
-      fetchAll();
-    }
-  };
-
-  const saveEditItem = async () => {
-    if (!editingItem) return;
-    await fetch('/api/templates', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'update_item', item_id:editingItem.id, title:editingItem.title, time_slot:editingItem.slot }),
-    });
-    toast.show('แก้ไขแล้ว ✓'); setEditingItem(null); fetchAll();
   };
 
   const toggleItem = async (itemId: string, isActive: boolean) => {
@@ -195,6 +191,13 @@ export default function SettingsPage() {
         onConfirm={confirm.onConfirm}
         onCancel={() => setConfirm(c=>({...c,open:false}))}
       />
+      <ChecklistItemModal
+        open={checklistEditor.open}
+        templateId={checklistEditor.templateId}
+        item={checklistEditor.item}
+        onClose={() => setChecklistEditor({ open:false, templateId:'', item:null })}
+        onSaved={() => { toast.show('บันทึก checklist แล้ว ✓'); fetchAll(); }}
+      />
 
       <div className="page-stack settings-container">
         <h1 style={{ fontSize:22, fontWeight:600 }}>Settings</h1>
@@ -261,74 +264,38 @@ export default function SettingsPage() {
 
                 {expandedTmpl===tmpl.id && (
                   <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:8 }}>
-                    {(['morning','afternoon','evening'] as const).map(slot => {
-                      const items = (tmpl.items||[]).filter((it:TemplateItem)=>it.time_slot===slot);
-                      if (!items.length) return null;
-                      return (
-                        <div key={slot}>
-                          <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:5 }}>{SLOT_LABEL[slot]}</div>
-                          {items.map((it:TemplateItem) => (
-                            <div key={it.id} style={{ marginBottom:4 }}>
-                              {editingItem?.id === it.id ? (
-                                <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                                  <input className="input" value={editingItem.title}
-                                    onChange={e => setEditingItem(ei => ei ? {...ei, title:e.target.value} : null)}
-                                    style={{ flex:1, padding:'6px 10px', fontSize:13 }} />
-                                  <select className="input" value={editingItem.slot}
-                                    onChange={e => setEditingItem(ei => ei ? {...ei, slot:e.target.value} : null)}
-                                    style={{ width:'auto', padding:'6px 10px', fontSize:12 }}>
-                                    <option value="morning">เช้า</option>
-                                    <option value="afternoon">กลางวัน</option>
-                                    <option value="evening">เย็น</option>
-                                  </select>
-                                  <button className="btn btn-primary btn-sm" onClick={saveEditItem}>✓</button>
-                                  <button className="btn btn-ghost btn-sm" onClick={() => setEditingItem(null)}>✕</button>
-                                </div>
-                              ) : (
-                                <div style={{
-                                  display:'flex', alignItems:'center', gap:8,
-                                  padding:'7px 10px', borderRadius:'var(--radius-sm)',
-                                  background:'var(--bg)', border:'1px solid var(--border-subtle)',
-                                  opacity:it.is_active ? 1 : 0.45,
-                                }}>
-                                  <input type="checkbox" checked={it.is_active}
-                                    onChange={() => toggleItem(it.id, it.is_active)} style={{ cursor:'pointer' }} />
-                                  <span style={{ flex:1, fontSize:13 }}>{it.title}</span>
-                                  <button className="btn btn-ghost btn-icon btn-sm" style={{ fontSize:12 }}
-                                    onClick={() => setEditingItem({ id:it.id, title:it.title, slot:it.time_slot })}>✏</button>
-                                  <button className="btn btn-ghost btn-icon btn-sm" style={{ color:'var(--text-muted)', fontSize:13 }}
-                                    onClick={() => deleteItem(it.id)}>🗑</button>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
-
-                    {/* Add item row */}
-                    <div style={{ ...box, marginTop:4, display:'flex', flexDirection:'column', gap:8 }}>
-                      <div className="section-label">เพิ่มรายการใหม่</div>
-                      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                        <input className="input" style={{ flex:1, minWidth:120, padding:'6px 10px', fontSize:13 }}
-                          value={itemInputs[tmpl.id]?.title||''}
-                          onChange={e => setItemInputs(prev => ({
-                            ...prev, [tmpl.id]:{ ...prev[tmpl.id], title:e.target.value, slot:prev[tmpl.id]?.slot||'morning' },
-                          }))}
-                          onKeyDown={e => e.key==='Enter' && addItem(tmpl.id)}
-                          placeholder="ชื่อรายการ..." />
-                        <select className="input" style={{ width:'auto', padding:'6px 10px', fontSize:13 }}
-                          value={itemInputs[tmpl.id]?.slot||'morning'}
-                          onChange={e => setItemInputs(prev => ({
-                            ...prev, [tmpl.id]:{ ...prev[tmpl.id], slot:e.target.value, title:prev[tmpl.id]?.title||'' },
-                          }))}>
-                          <option value="morning">เช้า</option>
-                          <option value="afternoon">กลางวัน</option>
-                          <option value="evening">เย็น</option>
-                        </select>
-                        <button className="btn btn-secondary btn-sm" onClick={() => addItem(tmpl.id)}>+ เพิ่ม</button>
+                    {(tmpl.items || []).length === 0 && (
+                      <div style={{ ...box, color:'var(--text-muted)', fontSize:13 }}>
+                        ยังไม่มีรายการใน checklist นี้
                       </div>
-                    </div>
+                    )}
+
+                    {(tmpl.items || []).map((it:TemplateItem) => (
+                      <div key={it.id} style={{
+                        display:'flex', alignItems:'center', gap:8,
+                        padding:'9px 10px', borderRadius:'var(--radius-sm)',
+                        background:'var(--bg)', border:'1px solid var(--border-subtle)',
+                        opacity:it.is_active ? 1 : 0.45,
+                      }}>
+                        <input type="checkbox" checked={it.is_active}
+                          onChange={() => toggleItem(it.id, it.is_active)} style={{ cursor:'pointer' }} />
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:13, fontWeight:500 }}>{it.title}</div>
+                          <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>
+                            {scheduleLabel(it)}
+                          </div>
+                        </div>
+                        <button className="btn btn-ghost btn-icon btn-sm" style={{ fontSize:12 }}
+                          onClick={() => setChecklistEditor({ open:true, templateId:tmpl.id, item:it })}>✏</button>
+                        <button className="btn btn-ghost btn-icon btn-sm" style={{ color:'var(--text-muted)', fontSize:13 }}
+                          onClick={() => deleteItem(it.id)}>🗑</button>
+                      </div>
+                    ))}
+
+                    <button className="btn btn-secondary btn-sm" style={{ alignSelf:'flex-start', marginTop:4 }}
+                      onClick={() => setChecklistEditor({ open:true, templateId:tmpl.id, item:null })}>
+                      + เพิ่มรายการ
+                    </button>
                   </div>
                 )}
               </div>

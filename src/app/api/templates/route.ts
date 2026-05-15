@@ -10,7 +10,7 @@ export async function GET() {
     const userId = await getCurrentUserId();
     const { rows } = await pool.query<DailyTemplate>(
       `SELECT dt.*,
-        json_agg(ti.* ORDER BY ti.time_slot, ti.sort_order) FILTER (WHERE ti.id IS NOT NULL) AS items
+        json_agg(ti.* ORDER BY ti.sort_order, ti.title) FILTER (WHERE ti.id IS NOT NULL) AS items
        FROM daily_templates dt
        LEFT JOIN template_items ti ON ti.template_id = dt.id AND ti.is_active = true
        WHERE dt.user_id = $1
@@ -43,18 +43,49 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'add_item') {
-      const { template_id, title, time_slot } = body;
+      const {
+        template_id, title,
+        recur_type, recur_dates, recur_preset, recur_weekdays,
+        recur_interval, recur_interval_unit, recur_start,
+        recur_end_type, recur_end_count, recur_end_date,
+      } = body;
       if (!template_id || !title?.trim()) {
         return NextResponse.json({ error: 'template_id and title required' }, { status: 400 });
       }
       const { rows: cntRows } = await pool.query(
-        `SELECT COUNT(*) AS cnt FROM template_items WHERE template_id = $1`,
-        [template_id]
+        `SELECT dt.id, COUNT(ti.*) AS cnt
+         FROM daily_templates dt
+         LEFT JOIN template_items ti ON ti.template_id = dt.id
+         WHERE dt.id = $1 AND dt.user_id = $2
+         GROUP BY dt.id`,
+        [template_id, userId]
       );
+      if (!cntRows.length) {
+        return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+      }
       const { rows } = await pool.query(
-        `INSERT INTO template_items (template_id, title, time_slot, sort_order)
-         VALUES ($1,$2,$3,$4) RETURNING *`,
-        [template_id, title.trim(), time_slot || 'morning', parseInt(cntRows[0]?.cnt || '0')]
+        `INSERT INTO template_items (
+          template_id, title, sort_order,
+          recur_type, recur_dates, recur_preset, recur_weekdays,
+          recur_interval, recur_interval_unit, recur_start,
+          recur_end_type, recur_end_count, recur_end_date
+        )
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+        [
+          template_id,
+          title.trim(),
+          parseInt(cntRows[0]?.cnt || '0'),
+          recur_type || 'preset',
+          recur_dates?.length ? `{${recur_dates.join(',')}}` : null,
+          recur_preset || 'daily',
+          recur_weekdays?.length ? `{${recur_weekdays.join(',')}}` : null,
+          recur_interval || null,
+          recur_interval_unit || null,
+          recur_start || null,
+          recur_end_type || 'never',
+          recur_end_count || null,
+          recur_end_date || null,
+        ]
       );
       return NextResponse.json({ data: rows[0] }, { status: 201 });
     }
@@ -62,24 +93,65 @@ export async function POST(req: NextRequest) {
     if (action === 'toggle_item') {
       const { item_id, is_active } = body;
       const { rows } = await pool.query(
-        `UPDATE template_items SET is_active = $1 WHERE id = $2 RETURNING *`,
-        [is_active, item_id]
+        `UPDATE template_items ti
+         SET is_active = $1
+         FROM daily_templates dt
+         WHERE ti.id = $2 AND ti.template_id = dt.id AND dt.user_id = $3
+         RETURNING ti.*`,
+        [is_active, item_id, userId]
       );
       return NextResponse.json({ data: rows[0] });
     }
 
     if (action === 'delete_item') {
       const { item_id } = body;
-      await pool.query('DELETE FROM template_items WHERE id = $1', [item_id]);
+      await pool.query(
+        `DELETE FROM template_items ti
+         USING daily_templates dt
+         WHERE ti.id = $1 AND ti.template_id = dt.id AND dt.user_id = $2`,
+        [item_id, userId]
+      );
       return NextResponse.json({ message: 'Deleted' });
     }
 
     if (action === 'update_item') {
-      const { item_id, title, time_slot } = body;
+      const {
+        item_id, title,
+        recur_type, recur_dates, recur_preset, recur_weekdays,
+        recur_interval, recur_interval_unit, recur_start,
+        recur_end_type, recur_end_count, recur_end_date,
+      } = body;
       const { rows } = await pool.query(
-        `UPDATE template_items SET title = COALESCE($1, title), time_slot = COALESCE($2, time_slot)
-         WHERE id = $3 RETURNING *`,
-        [title || null, time_slot || null, item_id]
+        `UPDATE template_items ti
+         SET title = COALESCE($1, ti.title),
+             recur_type = COALESCE($2, ti.recur_type),
+             recur_dates = $3,
+             recur_preset = COALESCE($4, ti.recur_preset),
+             recur_weekdays = $5,
+             recur_interval = $6,
+             recur_interval_unit = $7,
+             recur_start = $8,
+             recur_end_type = COALESCE($9, ti.recur_end_type),
+             recur_end_count = $10,
+             recur_end_date = $11
+         FROM daily_templates dt
+         WHERE ti.id = $12 AND ti.template_id = dt.id AND dt.user_id = $13
+         RETURNING ti.*`,
+        [
+          title?.trim() || null,
+          recur_type || null,
+          recur_dates?.length ? `{${recur_dates.join(',')}}` : null,
+          recur_preset || null,
+          recur_weekdays?.length ? `{${recur_weekdays.join(',')}}` : null,
+          recur_interval || null,
+          recur_interval_unit || null,
+          recur_start || null,
+          recur_end_type || null,
+          recur_end_count || null,
+          recur_end_date || null,
+          item_id,
+          userId,
+        ]
       );
       return NextResponse.json({ data: rows[0] });
     }

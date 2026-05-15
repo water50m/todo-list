@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { CreateTaskInput, RecurType, PresetType } from '@/types';
 
-type DatePickerValue = Pick<CreateTaskInput,
+export type DatePickerValue = Pick<CreateTaskInput,
   'recur_type'|'recur_dates'|'recur_preset'|'recur_weekdays'|
   'recur_interval'|'recur_interval_unit'|'recur_start'|
   'recur_end_type'|'recur_end_count'|'recur_end_date'|'due_date'|'due_time'
@@ -12,6 +12,7 @@ type DatePickerValue = Pick<CreateTaskInput,
 interface Props {
   value: DatePickerValue;
   onChange: (v: DatePickerValue) => void;
+  showTime?: boolean;
 }
 
 const WEEKDAYS = ['อา','จ','อ','พ','พฤ','ศ','ส'];
@@ -31,7 +32,7 @@ const PRESETS: { id: PresetType; label: string; sub: string }[] = [
   { id: 'custom-days', label: 'เลือกวันเองในสัปดาห์',    sub: 'กดเลือกได้หลายวัน' },
 ];
 
-export default function DatePicker({ value, onChange }: Props) {
+export default function DatePicker({ value, onChange, showTime = true }: Props) {
   const today = new Date();
   const [calYear, setCalYear]   = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -301,13 +302,14 @@ export default function DatePicker({ value, onChange }: Props) {
         <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{buildPreview()}</span>
       </div>
 
-      {/* Time */}
-      <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-        <span style={{ fontSize:13, color:'var(--text-secondary)', flexShrink:0 }}>เวลา (ไม่บังคับ)</span>
-        <input type="time" value={value.due_time || ''}
-          onChange={e => set({ due_time: e.target.value })}
-          className="input" style={{ width:'auto', padding:'6px 10px' }} />
-      </div>
+      {showTime && (
+        <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+          <span style={{ fontSize:13, color:'var(--text-secondary)', flexShrink:0 }}>เวลา (ไม่บังคับ)</span>
+          <input type="time" value={value.due_time || ''}
+            onChange={e => set({ due_time: e.target.value })}
+            className="input" style={{ width:'auto', padding:'6px 10px' }} />
+        </div>
+      )}
     </div>
   );
 }

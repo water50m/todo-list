@@ -83,8 +83,29 @@ CREATE TABLE IF NOT EXISTS template_items (
   title text NOT NULL,
   time_slot text NOT NULL DEFAULT 'morning',
   sort_order int NOT NULL DEFAULT 0,
-  is_active boolean NOT NULL DEFAULT true
+  is_active boolean NOT NULL DEFAULT true,
+  recur_type text NOT NULL DEFAULT 'preset',
+  recur_dates date[],
+  recur_preset text DEFAULT 'daily',
+  recur_weekdays int[],
+  recur_interval int,
+  recur_interval_unit text,
+  recur_start date,
+  recur_end_type text NOT NULL DEFAULT 'never',
+  recur_end_count int,
+  recur_end_date date
 );
+
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_type text NOT NULL DEFAULT 'preset';
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_dates date[];
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_preset text DEFAULT 'daily';
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_weekdays int[];
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_interval int;
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_interval_unit text;
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_start date;
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_end_type text NOT NULL DEFAULT 'never';
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_end_count int;
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_end_date date;
 
 CREATE TABLE IF NOT EXISTS checklist_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -14,8 +14,8 @@
 ## Features
 
 - Dashboard สรุปจำนวนงาน, completion rate, งานเกินกำหนด, daily streak และนัดหมายใกล้ถึง
-- Task management พร้อม priority, category, tag, due date และ recurring options
-- Daily checklist แยกช่วงเช้า กลางวัน เย็น พร้อม streak
+- Task management แบบสร้างง่าย ใส่ชื่อ รายละเอียด priority และแก้ไข task ได้
+- Daily checklist จาก database พร้อม recurrence เช่น ทุกวัน บางวันในสัปดาห์ หลายวันที่เลือก หรือ custom pattern
 - Calendar สำหรับเพิ่ม แก้ไข ยกเลิก และลบนัดหมาย
 - Settings สำหรับจัดการ daily templates, categories และ tags
 - UI โทน pastel พร้อม responsive layout
@@ -146,7 +146,7 @@ src/
   app/              Next.js App Router pages and API routes
   components/       Shared UI components
   hooks/            Client hooks
-  lib/              Database connection
+  lib/              Database connection, auth helpers, recurrence helpers
   types/            Shared TypeScript types
 ```
 
@@ -155,3 +155,4 @@ src/
 - `.env` ถูก ignore โดย git แล้ว ไม่ควร commit secret จริงเข้า repo
 - ถ้าใช้ Docker บน Windows/Mac แล้ว database อยู่บน host machine ให้ใช้ `host.docker.internal` ใน `DATABASE_URL`
 - Docker ใช้ host port `3000` ถ้าเครื่องมี service อื่นใช้ port นี้อยู่ ต้องหยุด service นั้นก่อน
+- ถ้ามี database เดิมอยู่แล้ว ให้รัน `database/schema.sql` ซ้ำเพื่อเพิ่มคอลัมน์ recurrence ของ `template_items`

@@ -106,6 +106,16 @@ export interface TemplateItem {
   time_slot: TimeSlot;
   sort_order: number;
   is_active: boolean;
+  recur_type: RecurType;
+  recur_dates?: string[];
+  recur_preset?: PresetType;
+  recur_weekdays?: number[];
+  recur_interval?: number;
+  recur_interval_unit?: 'day' | 'week' | 'month';
+  recur_start?: string;
+  recur_end_type?: 'never' | 'count' | 'date';
+  recur_end_count?: number;
+  recur_end_date?: string;
 }
 
 export interface ChecklistLog {

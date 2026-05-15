@@ -1,7 +1,7 @@
 // app/tasks/page.tsx
 'use client';
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Task, TaskStatus } from '@/types';
 import { PriorityBadge, TagBadge } from '@/components/Badge';
 import CreateTaskModal from '@/components/CreateTaskModal';
@@ -35,7 +35,6 @@ function formatDate(d?: string) {
 }
 
 export default function TasksPage() {
-  const router  = useRouter();
   const toast   = useToast();
 
   const [tasks, setTasks]           = useState<Task[]>([]);
@@ -46,6 +45,7 @@ export default function TasksPage() {
   const [categoryFilter, setCategory] = useState('');
   const [search, setSearch]         = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   useEffect(() => {
     fetch('/api/categories').then(r => r.json()).then(d => setCategories(d.data || []));
@@ -107,7 +107,7 @@ export default function TasksPage() {
               )}
             </p>
           </div>
-          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
+          <button className="btn btn-primary" onClick={() => { setEditingTask(null); setShowCreate(true); }}>
             + สร้าง Task
           </button>
         </div>
@@ -161,7 +161,7 @@ export default function TasksPage() {
             <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
             <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>ไม่มี task ที่ตรงกับเงื่อนไข</div>
             <button className="btn btn-secondary btn-sm" style={{ marginTop: 16 }}
-              onClick={() => setShowCreate(true)}>+ สร้าง Task แรก</button>
+              onClick={() => { setEditingTask(null); setShowCreate(true); }}>+ สร้าง Task แรก</button>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -170,7 +170,7 @@ export default function TasksPage() {
               const dateInfo = formatDate(task.due_date || undefined);
               return (
                 <div key={task.id} className="card fade-in"
-                  onClick={() => router.push(`/tasks/${task.id}`)}
+                  onClick={() => setEditingTask(task)}
                   style={{
                     padding: '12px 16px',
                     display: 'flex', alignItems: 'flex-start', gap: 12,
@@ -248,7 +248,11 @@ export default function TasksPage() {
                     </div>
                   </div>
 
-                  {/* Delete */}
+                  <button onClick={e => { e.stopPropagation(); setEditingTask(task); }}
+                    className="btn btn-ghost btn-icon btn-sm"
+                    style={{ color: 'var(--text-muted)', flexShrink: 0 }}
+                    title="แก้ไข">✏</button>
+
                   <button onClick={e => deleteTask(e, task.id)}
                     className="btn btn-ghost btn-icon btn-sm"
                     style={{ color: 'var(--text-muted)', flexShrink: 0 }}
@@ -261,9 +265,13 @@ export default function TasksPage() {
       </div>
 
       <CreateTaskModal
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        onCreated={() => { fetchTasks(); toast.show('สร้าง task แล้ว ✓'); }}
+        open={showCreate || !!editingTask}
+        task={editingTask}
+        onClose={() => { setShowCreate(false); setEditingTask(null); }}
+        onCreated={() => {
+          fetchTasks();
+          toast.show(editingTask ? 'บันทึก task แล้ว ✓' : 'สร้าง task แล้ว ✓');
+        }}
       />
     </>
   );

@@ -1,14 +1,11 @@
 // app/daily/page.tsx
 'use client';
-import { useState, useEffect } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChecklistLog, ChecklistItemLog } from '@/types';
 import Toaster from '@/components/Toaster';
 import { useToast } from '@/hooks/useToast';
-
-const SLOT_LABEL: Record<string, string> = {
-  morning: '🌅 ช่วงเช้า', afternoon: '🌞 ช่วงกลางวัน', evening: '🌙 ช่วงเย็น',
-};
 
 function formatDate(d: Date) {
   return d.toLocaleDateString('th-TH', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
@@ -25,15 +22,15 @@ export default function DailyPage() {
   const dateStr = viewDate.toISOString().split('T')[0];
   const isToday = dateStr === new Date().toISOString().split('T')[0];
 
-  const fetchLog = async () => {
+  const fetchLog = useCallback(async () => {
     setLoading(true);
     const res  = await fetch(`/api/checklist?date=${dateStr}`);
     const data = await res.json();
     setLog(data.data || null);
     setLoading(false);
-  };
+  }, [dateStr]);
 
-  useEffect(() => { fetchLog(); }, [dateStr]);
+  useEffect(() => { fetchLog(); }, [fetchLog]);
 
   const toggle = async (item: ChecklistItemLog) => {
     if (!isToday) return; // can't modify past days
@@ -77,12 +74,6 @@ export default function DailyPage() {
   );
 
   const pct = log.total_items > 0 ? Math.round((log.done_items / log.total_items) * 100) : 0;
-  const bySlot = (log.items || []).reduce((acc, item) => {
-    const slot = item.template_item?.time_slot || 'morning';
-    if (!acc[slot]) acc[slot] = [];
-    acc[slot].push(item);
-    return acc;
-  }, {} as Record<string, ChecklistItemLog[]>);
 
   return (
     <>
@@ -149,61 +140,53 @@ export default function DailyPage() {
           )}
         </div>
 
-        {/* Slot sections */}
-        {(['morning','afternoon','evening'] as const).map(slot => {
-          const items = bySlot[slot] || [];
-          if (!items.length) return null;
-          const slotDone = items.filter(i => i.is_done).length;
-          return (
-            <div key={slot}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                <span style={{ fontSize:13, fontWeight:600 }}>{SLOT_LABEL[slot]}</span>
-                <span style={{ fontSize:12, color:'var(--text-muted)' }}>{slotDone}/{items.length}</span>
+        {/* Checklist items */}
+        {(log.items || []).length === 0 ? (
+          <div className="card" style={{ padding:28, textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>
+            วันนี้ยังไม่มีรายการที่ต้องทำ
+          </div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {(log.items || []).map(item => (
+              <div key={item.id} className="card"
+                onClick={() => toggle(item)}
+                style={{
+                  padding:'12px 16px',
+                  display:'flex', alignItems:'center', gap:12,
+                  cursor: isToday ? 'pointer' : 'default',
+                  opacity: item.is_done ? 0.6 : 1,
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { if (isToday) e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = 'var(--shadow-sm)'}>
+
+                <div style={{
+                  width:20, height:20, borderRadius:'var(--radius-sm)', flexShrink:0,
+                  border:`1.5px solid ${item.is_done ? 'var(--success)' : 'var(--border)'}`,
+                  background: item.is_done ? 'var(--success)' : 'var(--bg)',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  transition:'all 0.15s',
+                }}>
+                  {item.is_done && <span style={{ fontSize:11, color:'white' }}>✓</span>}
+                </div>
+
+                <span style={{
+                  flex:1, fontSize:14,
+                  textDecoration: item.is_done ? 'line-through' : 'none',
+                  color: item.is_done ? 'var(--text-muted)' : 'var(--text-primary)',
+                }}>
+                  {item.template_item?.title}
+                </span>
+
+                {item.done_at && (
+                  <span style={{ fontSize:11, color:'var(--text-muted)', flexShrink:0 }}>
+                    {new Date(item.done_at).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' })}
+                  </span>
+                )}
               </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                {items.map(item => (
-                  <div key={item.id} className="card"
-                    onClick={() => toggle(item)}
-                    style={{
-                      padding:'12px 16px',
-                      display:'flex', alignItems:'center', gap:12,
-                      cursor: isToday ? 'pointer' : 'default',
-                      opacity: item.is_done ? 0.6 : 1,
-                      transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => { if (isToday) e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-                    onMouseLeave={e => e.currentTarget.style.boxShadow = 'var(--shadow-sm)'}>
-
-                    {/* Checkbox */}
-                    <div style={{
-                      width:20, height:20, borderRadius:'var(--radius-sm)', flexShrink:0,
-                      border:`1.5px solid ${item.is_done ? 'var(--success)' : 'var(--border)'}`,
-                      background: item.is_done ? 'var(--success)' : 'var(--bg)',
-                      display:'flex', alignItems:'center', justifyContent:'center',
-                      transition:'all 0.15s',
-                    }}>
-                      {item.is_done && <span style={{ fontSize:11, color:'white' }}>✓</span>}
-                    </div>
-
-                    <span style={{
-                      flex:1, fontSize:14,
-                      textDecoration: item.is_done ? 'line-through' : 'none',
-                      color: item.is_done ? 'var(--text-muted)' : 'var(--text-primary)',
-                    }}>
-                      {item.template_item?.title}
-                    </span>
-
-                    {item.done_at && (
-                      <span style={{ fontSize:11, color:'var(--text-muted)', flexShrink:0 }}>
-                        {new Date(item.done_at).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' })}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        )}
 
       </div>
     </>
