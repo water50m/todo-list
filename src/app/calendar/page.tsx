@@ -9,12 +9,6 @@ import { useToast } from '@/hooks/useToast';
 
 const TH_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 const TH_DAYS   = ['อา','จ','อ','พ','พฤ','ศ','ส'];
-const STATUS_COLOR: Record<AppointmentStatus, string> = {
-  confirmed: '#1D9E75', pending: '#EF9F27', cancelled: '#C93535',
-};
-const STATUS_LABEL: Record<AppointmentStatus, string> = {
-  confirmed: 'ยืนยัน', pending: 'รอยืนยัน', cancelled: 'ยกเลิก',
-};
 const REMIND_OPTS = [
   { value: 0,    label: 'ไม่แจ้ง' },
   { value: 5,    label: '5 นาที' },
@@ -77,7 +71,6 @@ export default function CalendarPage() {
   const [year, setYear]     = useState(today.getFullYear());
   const [month, setMonth]   = useState(today.getMonth());
   const [selected, setSelected] = useState<Date>(today);
-  const [appts, setAppts]   = useState<Appointment[]>([]);
   const [calendar, setCalendar] = useState<CalendarEventsResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -103,11 +96,7 @@ export default function CalendarPage() {
 
   const fetchCalendar = useCallback(async () => {
     setLoading(true);
-    const [apptRes, eventRes] = await Promise.all([
-      fetch(`/api/appointments?from=${monthFrom}&to=${monthTo}`).then(r => r.json()),
-      fetch(`/api/calendar/events?from=${monthFrom}&to=${monthTo}`).then(r => r.json()),
-    ]);
-    setAppts(apptRes.data || []);
+    const eventRes = await fetch(`/api/calendar/events?from=${monthFrom}&to=${monthTo}`).then(r => r.json());
     setCalendar(eventRes.data || null);
     setLoading(false);
   }, [monthFrom, monthTo]);
@@ -122,9 +111,6 @@ export default function CalendarPage() {
 
   const selectedKey = dateKey(selected);
   const selectedEvents = dayMap.get(selectedKey) || { ...EMPTY_DAY, date: selectedKey };
-  const selectedAppts = appts.filter(a => sameDay(new Date(a.start_at), selected)).sort(
-    (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
-  );
 
   const changeMonth = (delta: number) => {
     const next = new Date(year, month + delta, 1);
@@ -137,7 +123,6 @@ export default function CalendarPage() {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const monthDays = Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1));
-  const hasAppt = (d: number) => appts.some(a => a.status !== 'cancelled' && sameDay(new Date(a.start_at), new Date(year, month, d)));
 
   const openCreate = (date = selected) => {
     const d = new Date(date);
@@ -208,159 +193,24 @@ export default function CalendarPage() {
         onCancel={() => setConfirm(c => ({ ...c, open: false }))}
       />
 
-      <div className="page-stack">
-        <div className="page-header" style={{ alignItems:'flex-end' }}>
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 600 }}>นัดหมาย</h1>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
-              จัดการนัดหมายแยกจากปฏิทินรวม
-            </p>
-          </div>
-          <button className="btn btn-primary" onClick={() => openCreate(selected)}>+ นัดหมาย</button>
-        </div>
-
-        <div className="calendar-layout">
-          <div className="calendar-sidebar">
-            <div className="card" style={{ padding: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => changeMonth(-1)}>‹</button>
-                <span style={{ fontSize: 14, fontWeight: 600 }}>{TH_MONTHS[month]} {year}</span>
-                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => changeMonth(1)}>›</button>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
-                {TH_DAYS.map(d => (
-                  <div key={d} style={{ textAlign: 'center', fontSize: 10, color: 'var(--text-muted)', padding: '3px 0' }}>{d}</div>
-                ))}
-                {Array.from({ length: firstDay }).map((_, i) => <div key={`b${i}`} />)}
-                {monthDays.map(thisDate => {
-                  const d = thisDate.getDate();
-                  const isSel = sameDay(thisDate, selected);
-                  const isToday = sameDay(thisDate, today);
-                  const hasEvt = hasAppt(d);
-                  return (
-                    <div key={d} onClick={() => setSelected(thisDate)} style={{
-                      height: 32, display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', justifyContent: 'center',
-                      borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                      background: isSel ? 'var(--accent)' : 'transparent',
-                      color: isSel ? 'var(--accent-fg)' : isToday ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      fontWeight: isToday ? 700 : 400, fontSize: 13,
-                      border: isToday && !isSel ? '1.5px solid var(--border)' : 'none',
-                      transition: 'all 0.1s', gap: 1,
-                    }}>
-                      {d}
-                      {hasEvt && (
-                        <div style={{
-                          width: 4, height: 4, borderRadius: '50%',
-                          background: isSel ? 'rgba(255,255,255,0.7)' : 'var(--med)',
-                        }} />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border-subtle)', fontSize: 12, color: 'var(--text-muted)' }}>
-                {appts.filter(a => a.status !== 'cancelled').length} นัดหมายในเดือนนี้
-              </div>
-            </div>
-          </div>
-
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ marginBottom: 16, display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start' }}>
-              <div>
-                <h2 style={{ fontSize: 16, fontWeight: 600 }}>{dayTitle(selected)}</h2>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-                  {selectedAppts.filter(a => a.status !== 'cancelled').length} นัดหมาย
-                </p>
-              </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => openCreate(selected)}>+ เพิ่มนัดหมาย</button>
-            </div>
-
-            {loading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-                <span className="spinner" style={{ width: 20, height: 20 }} />
-              </div>
-            ) : selectedAppts.length === 0 ? (
-              <div className="card" style={{ padding: 40, textAlign: 'center' }}>
-                <div style={{ fontSize: 28, marginBottom: 10 }}>📅</div>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>ไม่มีนัดหมายในวันนี้</div>
-                <button className="btn btn-secondary btn-sm" onClick={() => openCreate(selected)}>+ เพิ่มนัดหมาย</button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {selectedAppts.map(a => (
-                  <div key={a.id} className="card fade-in" style={{
-                    padding: '14px 16px',
-                    borderLeft: `3px solid ${STATUS_COLOR[a.status]}`,
-                    opacity: a.status === 'cancelled' ? 0.5 : 1,
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 5 }}>{a.title}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                          {a.is_all_day
-                            ? <span>📅 ทั้งวัน</span>
-                            : <span>🕐 {fmtTime(a.start_at)} - {fmtTime(a.end_at)}</span>}
-                          {a.location && <span>📍 {a.location}</span>}
-                          {a.remind_before_min ? <span>🔔 {a.remind_before_min} นาทีก่อน</span> : null}
-                          {a.is_recurring && <span>🔁 ซ้ำ</span>}
-                        </div>
-                        {a.notes && (
-                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 5 }}>{a.notes}</div>
-                        )}
-                        {(a.attendees?.length || 0) > 0 && (
-                          <div style={{ marginTop: 7, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                            {a.attendees!.map(att => (
-                              <span key={att.id} className="badge" style={{
-                                borderColor: 'var(--border)', background: 'var(--bg-muted)', color: 'var(--text-secondary)',
-                              }}>👤 {att.name}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-                        <span className="badge" style={{
-                          borderColor: STATUS_COLOR[a.status] + '66',
-                          background: STATUS_COLOR[a.status] + '18',
-                          color: STATUS_COLOR[a.status],
-                        }}>{STATUS_LABEL[a.status]}</span>
-
-                        {a.status !== 'cancelled' && (
-                          <div style={{ display: 'flex', gap: 4 }}>
-                            <button className="btn btn-ghost btn-icon btn-sm"
-                              style={{ fontSize: 13, color: 'var(--text-muted)' }}
-                              onClick={() => openEdit(a)} title="แก้ไข">✏</button>
-                            <button className="btn btn-ghost btn-icon btn-sm"
-                              style={{ fontSize: 13, color: 'var(--text-muted)' }}
-                              onClick={() => setConfirm({ open: true, id: a.id, soft: true })} title="ยกเลิกนัด">🚫</button>
-                            <button className="btn btn-ghost btn-icon btn-sm"
-                              style={{ fontSize: 13, color: 'var(--text-muted)' }}
-                              onClick={() => setConfirm({ open: true, id: a.id, soft: false })} title="ลบ">🗑</button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="divider" />
-
+      <div className="page-stack calendar-page">
         <section className="page-stack">
           <div className="page-header" style={{ alignItems:'flex-end' }}>
             <div>
-              <h2 style={{ fontSize: 20, fontWeight: 600 }}>ปฏิทินรวม</h2>
+              <h1 style={{ fontSize: 22, fontWeight: 600 }}>ปฏิทินรวม</h1>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
                 รวม daily checklist, task และนัดหมายในเดือนเดียวกัน
               </p>
             </div>
             <div className="toolbar">
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => changeMonth(-1)}>‹</button>
+                <span style={{ fontSize:13, fontWeight:600, minWidth:130, textAlign:'center' }}>
+                  {TH_MONTHS[month]} {year}
+                </span>
+                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => changeMonth(1)}>›</button>
+                {loading && <span className="spinner" style={{ width:14, height:14 }} />}
+              </div>
               {([
                 ['appointments', 'นัดหมาย'],
                 ['checklists', 'Daily'],
@@ -377,13 +227,13 @@ export default function CalendarPage() {
             </div>
           </div>
 
-          <div className="card" style={{ padding: 16 }}>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(7, minmax(0, 1fr))', gap: 6 }}>
+          <div className="card calendar-board" style={{ padding: 18 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(7, minmax(0, 1fr))', gap: 8 }}>
               {TH_DAYS.map(day => (
                 <div key={day} style={{ fontSize:11, color:'var(--text-muted)', textAlign:'center', padding:'4px 0' }}>{day}</div>
               ))}
               {Array.from({ length: firstDay }).map((_, i) => (
-                <div key={`blank-${i}`} style={{ minHeight: 112 }} />
+                <div key={`blank-${i}`} className="calendar-day-blank" />
               ))}
               {monthDays.map(thisDate => {
                 const key = dateKey(thisDate);
@@ -396,9 +246,9 @@ export default function CalendarPage() {
                     className="calendar-day-cell"
                     onClick={() => setSelected(thisDate)}
                     style={{
-                      minHeight: 118,
+                      minHeight: 150,
                       textAlign:'left',
-                      padding: 9,
+                      padding: 12,
                       borderRadius:'var(--radius-md)',
                       border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border-subtle)'}`,
                       background: isSelected ? 'var(--accent-soft)' : 'rgba(255,255,255,0.72)',
@@ -487,8 +337,27 @@ export default function CalendarPage() {
                 {selectedEvents.appointments.length === 0 ? (
                   <div style={{ fontSize:12, color:'var(--text-muted)' }}>ไม่มีนัดหมาย</div>
                 ) : selectedEvents.appointments.map(a => (
-                  <div key={a.id} style={{ fontSize:12, marginBottom:6 }}>
-                    <span style={{ color:'var(--text-muted)' }}>{fmtTime(a.start_at)}</span> {a.title}
+                  <div key={a.id} style={{
+                    fontSize:12, marginBottom:8, padding:'8px 10px',
+                    border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-sm)',
+                    background:'var(--bg)',
+                  }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', gap:8, alignItems:'flex-start' }}>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontWeight:500 }}>{a.title}</div>
+                        <div style={{ color:'var(--text-muted)', marginTop:2 }}>
+                          {a.is_all_day ? 'ทั้งวัน' : `${fmtTime(a.start_at)} - ${fmtTime(a.end_at)}`}
+                        </div>
+                      </div>
+                      <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+                        <button className="btn btn-ghost btn-icon btn-sm" style={{ fontSize:12 }}
+                          onClick={() => openEdit(a)} title="แก้ไข">✏</button>
+                        <button className="btn btn-ghost btn-icon btn-sm" style={{ fontSize:12, color:'var(--text-muted)' }}
+                          onClick={() => setConfirm({ open:true, id:a.id, soft:true })} title="ยกเลิกนัด">🚫</button>
+                        <button className="btn btn-ghost btn-icon btn-sm" style={{ fontSize:12, color:'var(--danger)' }}
+                          onClick={() => setConfirm({ open:true, id:a.id, soft:false })} title="ลบ">🗑</button>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

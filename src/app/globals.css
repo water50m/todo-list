@@ -288,6 +288,19 @@ textarea.input { resize: vertical; }
   box-shadow: var(--shadow-sm) !important;
 }
 
+.calendar-page {
+  width: min(100%, 1360px);
+  margin: 0 auto;
+}
+
+.calendar-board {
+  width: 100%;
+}
+
+.calendar-day-blank {
+  min-height: 150px;
+}
+
 .task-drawer {
   position: fixed;
   right: 12px;
@@ -482,7 +495,11 @@ textarea.input { resize: vertical; }
   }
 
   .calendar-day-cell {
-    min-height: 96px !important;
+    min-height: 112px !important;
+  }
+
+  .calendar-day-blank {
+    min-height: 112px;
   }
 }
 
@@ -528,8 +545,12 @@ textarea.input { resize: vertical; }
   }
 
   .calendar-day-cell {
-    min-height: 72px !important;
+    min-height: 86px !important;
     padding: 6px !important;
+  }
+
+  .calendar-day-blank {
+    min-height: 86px;
   }
 
   .card {
