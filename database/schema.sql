@@ -13,10 +13,18 @@ CREATE TABLE IF NOT EXISTS users (
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash text;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone text DEFAULT 'Asia/Bangkok';
 UPDATE users
 SET pin_hash = 'scrypt:8304321e25c4423554a89bccbb85bcda:ac07ad88d0bdbd17ebb9d33479d37823b18aac2d117168af3550746afeb51a5ac243e2c61bce2c62aec8dd990deac749d81c1206d20846ce7f9fbac9ce06e37a'
 WHERE pin_hash IS NULL;
+UPDATE users SET email = 'demo@example.com' WHERE email IS NULL;
+UPDATE users SET timezone = 'Asia/Bangkok' WHERE timezone IS NULL;
 ALTER TABLE users ALTER COLUMN pin_hash SET NOT NULL;
+ALTER TABLE users ALTER COLUMN email SET DEFAULT 'demo@example.com';
+ALTER TABLE users ALTER COLUMN email SET NOT NULL;
+ALTER TABLE users ALTER COLUMN timezone SET DEFAULT 'Asia/Bangkok';
+ALTER TABLE users ALTER COLUMN timezone SET NOT NULL;
 
 CREATE TABLE IF NOT EXISTS categories (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -74,6 +82,71 @@ CREATE TABLE IF NOT EXISTS task_tags (
   tag_id uuid NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
   PRIMARY KEY (task_id, tag_id)
 );
+
+CREATE TABLE IF NOT EXISTS vocabulary (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  english varchar(200) NOT NULL,
+  thai varchar(400) NOT NULL,
+  phonetic varchar(200),
+  example text,
+  category varchar(100) NOT NULL DEFAULT 'general',
+  difficulty smallint NOT NULL DEFAULT 1,
+  synonyms text[],
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE vocabulary ADD COLUMN IF NOT EXISTS phonetic varchar(200);
+ALTER TABLE vocabulary ADD COLUMN IF NOT EXISTS example text;
+ALTER TABLE vocabulary ADD COLUMN IF NOT EXISTS category varchar(100) NOT NULL DEFAULT 'general';
+ALTER TABLE vocabulary ADD COLUMN IF NOT EXISTS difficulty smallint NOT NULL DEFAULT 1;
+ALTER TABLE vocabulary ADD COLUMN IF NOT EXISTS synonyms text[];
+ALTER TABLE vocabulary ADD COLUMN IF NOT EXISTS created_by uuid REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE vocabulary ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+ALTER TABLE vocabulary ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
+DO $$
+BEGIN
+  IF to_regclass('public.admin_custom_vocabulary') IS NOT NULL THEN
+    INSERT INTO vocabulary (
+      id,
+      english,
+      thai,
+      phonetic,
+      example,
+      category,
+      difficulty,
+      created_by,
+      created_at,
+      updated_at
+    )
+    SELECT
+      id,
+      english,
+      thai,
+      phonetic,
+      example,
+      COALESCE(category, 'general'),
+      COALESCE(difficulty, 2),
+      created_by,
+      created_at,
+      updated_at
+    FROM admin_custom_vocabulary
+    ON CONFLICT (id) DO UPDATE SET
+      english = EXCLUDED.english,
+      thai = EXCLUDED.thai,
+      phonetic = EXCLUDED.phonetic,
+      example = EXCLUDED.example,
+      category = EXCLUDED.category,
+      difficulty = EXCLUDED.difficulty,
+      created_by = EXCLUDED.created_by,
+      created_at = EXCLUDED.created_at,
+      updated_at = EXCLUDED.updated_at;
+
+    DROP TABLE admin_custom_vocabulary;
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS daily_templates (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -168,10 +241,12 @@ CREATE INDEX IF NOT EXISTS idx_tasks_category_id ON tasks(category_id);
 CREATE INDEX IF NOT EXISTS idx_appointments_user_start ON appointments(user_id, start_at);
 CREATE INDEX IF NOT EXISTS idx_checklist_logs_user_date ON checklist_logs(user_id, log_date);
 
-INSERT INTO users (id, name, pin_hash)
+INSERT INTO users (id, name, email, timezone, pin_hash)
 VALUES (
   '00000000-0000-0000-0000-000000000001',
   'Demo User',
+  'demo@example.com',
+  'Asia/Bangkok',
   'scrypt:8304321e25c4423554a89bccbb85bcda:ac07ad88d0bdbd17ebb9d33479d37823b18aac2d117168af3550746afeb51a5ac243e2c61bce2c62aec8dd990deac749d81c1206d20846ce7f9fbac9ce06e37a'
 )
 ON CONFLICT (id) DO NOTHING;
