@@ -93,7 +93,9 @@ CREATE TABLE IF NOT EXISTS template_items (
   recur_start date,
   recur_end_type text NOT NULL DEFAULT 'never',
   recur_end_count int,
-  recur_end_date date
+  recur_end_date date,
+  category_id uuid REFERENCES categories(id) ON DELETE SET NULL,
+  tag_id uuid REFERENCES tags(id) ON DELETE SET NULL
 );
 
 ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_type text NOT NULL DEFAULT 'preset';
@@ -106,6 +108,8 @@ ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_start date;
 ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_end_type text NOT NULL DEFAULT 'never';
 ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_end_count int;
 ALTER TABLE template_items ADD COLUMN IF NOT EXISTS recur_end_date date;
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS category_id uuid REFERENCES categories(id) ON DELETE SET NULL;
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS tag_id uuid REFERENCES tags(id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS checklist_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

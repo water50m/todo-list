@@ -3,8 +3,9 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChecklistLog, ChecklistItemLog } from '@/types';
+import { ChecklistLog, ChecklistItemLog, TemplateItem } from '@/types';
 import Toaster from '@/components/Toaster';
+import ChecklistItemModal from '@/components/ChecklistItemModal';
 import { useToast } from '@/hooks/useToast';
 
 function formatDate(d: Date) {
@@ -18,6 +19,7 @@ export default function DailyPage() {
   const [log, setLog]         = useState<ChecklistLog | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewDate, setViewDate] = useState(new Date());
+  const [editingItem, setEditingItem] = useState<TemplateItem | null>(null);
 
   const dateStr = viewDate.toISOString().split('T')[0];
   const isToday = dateStr === new Date().toISOString().split('T')[0];
@@ -68,7 +70,7 @@ export default function DailyPage() {
       <div style={{ fontSize:28, marginBottom:12 }}>📋</div>
       ไม่พบ checklist — ไปที่{' '}
       <button className="btn btn-ghost btn-sm" onClick={() => router.push('/settings')}>
-        Settings → Templates
+        Settings → Template
       </button> เพื่อตั้งค่า
     </div>
   );
@@ -78,6 +80,13 @@ export default function DailyPage() {
   return (
     <>
       <Toaster toasts={toast.toasts} onDismiss={toast.dismiss} />
+      <ChecklistItemModal
+        open={!!editingItem}
+        templateId={editingItem?.template_id || log.template_id}
+        item={editingItem}
+        onClose={() => setEditingItem(null)}
+        onSaved={() => { toast.show('บันทึก checklist แล้ว ✓'); fetchLog(); }}
+      />
 
       <div className="page-stack daily-container">
 
@@ -178,11 +187,25 @@ export default function DailyPage() {
                   {item.template_item?.title}
                 </span>
 
-                {item.done_at && (
-                  <span style={{ fontSize:11, color:'var(--text-muted)', flexShrink:0 }}>
-                    {new Date(item.done_at).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' })}
-                  </span>
-                )}
+                <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+                  {item.done_at && (
+                    <span style={{ fontSize:11, color:'var(--text-muted)' }}>
+                      {new Date(item.done_at).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' })}
+                    </span>
+                  )}
+                  <button
+                    className="btn btn-ghost btn-icon btn-sm"
+                    aria-label="แก้ไขรายการ"
+                    title="แก้ไขรายการ"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (item.template_item) setEditingItem(item.template_item);
+                    }}
+                    style={{ fontSize:13, minHeight:28, opacity:0.72 }}
+                  >
+                    ⚙
+                  </button>
+                </div>
               </div>
             ))}
           </div>

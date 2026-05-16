@@ -10,9 +10,18 @@ export async function GET() {
     const userId = await getCurrentUserId();
     const { rows } = await pool.query<DailyTemplate>(
       `SELECT dt.*,
-        json_agg(ti.* ORDER BY ti.sort_order, ti.title) FILTER (WHERE ti.id IS NOT NULL) AS items
+        jsonb_agg(
+          to_jsonb(ti) ||
+          jsonb_build_object(
+            'category', CASE WHEN c.id IS NULL THEN NULL ELSE to_jsonb(c) END,
+            'tag', CASE WHEN tg.id IS NULL THEN NULL ELSE to_jsonb(tg) END
+          )
+          ORDER BY ti.sort_order, ti.title
+        ) FILTER (WHERE ti.id IS NOT NULL) AS items
        FROM daily_templates dt
        LEFT JOIN template_items ti ON ti.template_id = dt.id AND ti.is_active = true
+       LEFT JOIN categories c ON c.id = ti.category_id AND c.user_id = dt.user_id
+       LEFT JOIN tags tg ON tg.id = ti.tag_id AND tg.user_id = dt.user_id
        WHERE dt.user_id = $1
        GROUP BY dt.id
        ORDER BY dt.created_at ASC`,
@@ -45,6 +54,7 @@ export async function POST(req: NextRequest) {
     if (action === 'add_item') {
       const {
         template_id, title,
+        category_id, tag_id,
         recur_type, recur_dates, recur_preset, recur_weekdays,
         recur_interval, recur_interval_unit, recur_start,
         recur_end_type, recur_end_count, recur_end_date,
@@ -65,16 +75,18 @@ export async function POST(req: NextRequest) {
       }
       const { rows } = await pool.query(
         `INSERT INTO template_items (
-          template_id, title, sort_order,
+          template_id, title, sort_order, category_id, tag_id,
           recur_type, recur_dates, recur_preset, recur_weekdays,
           recur_interval, recur_interval_unit, recur_start,
           recur_end_type, recur_end_count, recur_end_date
         )
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
         [
           template_id,
           title.trim(),
           parseInt(cntRows[0]?.cnt || '0'),
+          category_id || null,
+          tag_id || null,
           recur_type || 'preset',
           recur_dates?.length ? `{${recur_dates.join(',')}}` : null,
           recur_preset || 'daily',
@@ -117,6 +129,7 @@ export async function POST(req: NextRequest) {
     if (action === 'update_item') {
       const {
         item_id, title,
+        category_id, tag_id,
         recur_type, recur_dates, recur_preset, recur_weekdays,
         recur_interval, recur_interval_unit, recur_start,
         recur_end_type, recur_end_count, recur_end_date,
@@ -133,9 +146,11 @@ export async function POST(req: NextRequest) {
              recur_start = $8,
              recur_end_type = COALESCE($9, ti.recur_end_type),
              recur_end_count = $10,
-             recur_end_date = $11
+             recur_end_date = $11,
+             category_id = $12,
+             tag_id = $13
          FROM daily_templates dt
-         WHERE ti.id = $12 AND ti.template_id = dt.id AND dt.user_id = $13
+         WHERE ti.id = $14 AND ti.template_id = dt.id AND dt.user_id = $15
          RETURNING ti.*`,
         [
           title?.trim() || null,
@@ -149,6 +164,8 @@ export async function POST(req: NextRequest) {
           recur_end_type || null,
           recur_end_count || null,
           recur_end_date || null,
+          category_id || null,
+          tag_id || null,
           item_id,
           userId,
         ]

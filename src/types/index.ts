@@ -102,6 +102,10 @@ export interface DailyTemplate {
 export interface TemplateItem {
   id: string;
   template_id: string;
+  category_id?: string;
+  category?: Category;
+  tag_id?: string;
+  tag?: Tag;
   title: string;
   time_slot: TimeSlot;
   sort_order: number;

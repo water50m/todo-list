@@ -17,6 +17,9 @@ async function fetchLog(logId: string) {
           'done_at', cil.done_at,
           'template_item', jsonb_build_object(
             'id', ti.id,
+            'template_id', ti.template_id,
+            'category_id', ti.category_id,
+            'tag_id', ti.tag_id,
             'title', ti.title,
             'time_slot', ti.time_slot,
             'sort_order', ti.sort_order,
@@ -29,7 +32,9 @@ async function fetchLog(logId: string) {
             'recur_start', ti.recur_start,
             'recur_end_type', ti.recur_end_type,
             'recur_end_count', ti.recur_end_count,
-            'recur_end_date', ti.recur_end_date
+            'recur_end_date', ti.recur_end_date,
+            'category', CASE WHEN c.id IS NULL THEN NULL ELSE to_jsonb(c) END,
+            'tag', CASE WHEN tg.id IS NULL THEN NULL ELSE to_jsonb(tg) END
           )
         ) ORDER BY ti.sort_order, ti.title) FILTER (WHERE cil.id IS NOT NULL),
         '[]'
@@ -37,6 +42,8 @@ async function fetchLog(logId: string) {
     FROM checklist_logs cl
     LEFT JOIN checklist_item_logs cil ON cil.log_id = cl.id
     LEFT JOIN template_items ti ON ti.id = cil.template_item_id
+    LEFT JOIN categories c ON c.id = ti.category_id AND c.user_id = cl.user_id
+    LEFT JOIN tags tg ON tg.id = ti.tag_id AND tg.user_id = cl.user_id
     WHERE cl.id = $1
     GROUP BY cl.id`,
     [logId]

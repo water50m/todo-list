@@ -24,6 +24,8 @@
 
 - แสดง checklist ของวันที่เลือกโดยดึงจาก database
 - ไม่แบ่งช่วงเวลา รายการทั้งหมดแสดงเป็น list เดียว
+- แก้ไขรายการ checklist ได้จากปุ่มฟันเฟืองท้ายรายการ
+- เพิ่มหรือแก้ไข checklist item พร้อมเลือกหมวดหมู่และ tag ได้
 - ติดตาม progress เป็นจำนวนที่ทำแล้วเทียบกับทั้งหมด
 - รองรับ checklist ที่ไม่ได้ทำทุกวัน เช่น ทำเฉพาะบางวัน, วันธรรมดา, วันหยุด, หลายวันที่เลือกเอง หรือ custom recurrence
 - checklist แต่ละวันจะแสดงในปฏิทินรวมเป็นชื่อ template พร้อมจุดสีบอกความคืบหน้า และตัวเลข `done/all`
@@ -39,9 +41,9 @@
 
 ### Settings
 
-- จัดการ Daily Template และรายการ checklist
-- เพิ่มหรือแก้ไข checklist item พร้อมตั้ง recurrence ได้
-- จัดการหมวดหมู่และ tags สำหรับข้อมูลเดิมในระบบ
+- จัดการ Daily Template หลักเพียงชุดเดียว ไม่ต้องสร้างหลาย template
+- เพิ่มหรือแก้ไข checklist item พร้อมตั้ง recurrence, หมวดหมู่ และ tag ได้
+- จัดการหมวดหมู่และ tags เพื่อใช้กับ task และ daily checklist
 
 ### Authentication
 
@@ -114,7 +116,7 @@ schema นี้จะสร้างตารางหลัก:
 - `checklist_logs`, `checklist_item_logs`
 - `appointments`, `appointment_attendees`
 
-ถ้ามี database เดิมอยู่แล้ว ให้รัน `database/schema.sql` ซ้ำเพื่อเพิ่มคอลัมน์ใหม่ เช่น recurrence ของ `template_items`
+ถ้ามี database เดิมอยู่แล้ว ให้รัน `database/schema.sql` ซ้ำเพื่อเพิ่มคอลัมน์ใหม่ เช่น recurrence, category และ tag ของ `template_items`
 
 ## Development
 

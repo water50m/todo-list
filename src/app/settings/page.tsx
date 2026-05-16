@@ -50,11 +50,6 @@ export default function SettingsPage() {
     open:false, label:'', onConfirm:()=>{},
   });
 
-  // template form
-  const [newTmplName, setNewTmplName]   = useState('');
-  const [newTmplTime, setNewTmplTime]   = useState('00:00');
-  const [addingTmpl, setAddingTmpl]     = useState(false);
-  const [expandedTmpl, setExpanded]     = useState<string|null>(null);
   const [checklistEditor, setChecklistEditor] = useState<{
     open: boolean;
     templateId: string;
@@ -93,17 +88,6 @@ export default function SettingsPage() {
     setConfirm({ open:true, label, onConfirm: async () => { setConfirm(c=>({...c,open:false})); await fn(); } });
 
   // ── Template actions ──
-  const createTemplate = async () => {
-    if (!newTmplName.trim() || addingTmpl) return;
-    setAddingTmpl(true);
-    const res = await fetch('/api/templates', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'create_template', name:newTmplName.trim(), reset_time:newTmplTime }),
-    });
-    if (res.ok) { toast.show('สร้าง template แล้ว ✓'); setNewTmplName(''); fetchAll(); }
-    setAddingTmpl(false);
-  };
-
   const toggleItem = async (itemId: string, isActive: boolean) => {
     await fetch('/api/templates', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -182,6 +166,7 @@ export default function SettingsPage() {
   );
 
   const box = { border:'1px solid var(--border)', borderRadius:'var(--radius-md)', padding:'12px 14px', background:'var(--bg)' };
+  const defaultTemplate = templates[0];
 
   return (
     <>
@@ -205,7 +190,7 @@ export default function SettingsPage() {
         {/* Tabs */}
         <div style={{ borderBottom:'1px solid var(--border-subtle)', display:'flex' }}>
           {([
-            { id:'templates' as SettingsTab, label:'☀ Daily Templates' },
+            { id:'templates' as SettingsTab, label:'☀ Template' },
             { id:'categories' as SettingsTab, label:'🗂 หมวดหมู่' },
             { id:'tags' as SettingsTab, label:'🏷 Tags' },
           ]).map(t => (
@@ -222,84 +207,82 @@ export default function SettingsPage() {
         {/* ── TEMPLATES ── */}
         {tab === 'templates' && (
           <div className="fade-in" style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            <div className="card" style={{ padding:'16px 20px' }}>
-              <div className="section-label" style={{ marginBottom:10 }}>สร้าง Template ใหม่</div>
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-                <input className="input" value={newTmplName}
-                  onChange={e => setNewTmplName(e.target.value)}
-                  onKeyDown={e => e.key==='Enter' && createTemplate()}
-                  placeholder="ชื่อ template..." style={{ flex:1, minWidth:150 }} />
-                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                  <span style={{ fontSize:12, color:'var(--text-muted)', whiteSpace:'nowrap' }}>reset เวลา</span>
-                  <input type="time" className="input" value={newTmplTime}
-                    onChange={e => setNewTmplTime(e.target.value)}
-                    style={{ width:'auto', padding:'7px 10px' }} />
-                </div>
-                <button className="btn btn-primary" onClick={createTemplate} disabled={addingTmpl}>
-                  {addingTmpl ? '...' : '+ สร้าง'}
-                </button>
-              </div>
-            </div>
-
-            {templates.length === 0 && (
+            {!defaultTemplate ? (
               <div style={{ textAlign:'center', color:'var(--text-muted)', padding:'24px 0', fontSize:13 }}>
-                ยังไม่มี template — สร้างแรกได้เลย
+                ยังไม่มี template ในระบบ
               </div>
-            )}
-
-            {templates.map(tmpl => (
-              <div key={tmpl.id} className="card" style={{ padding:'14px 16px' }}>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+            ) : (
+              <div className="card" style={{ padding:'16px 18px' }}>
+                <div style={{
+                  display:'flex', alignItems:'flex-start', justifyContent:'space-between',
+                  gap:12, marginBottom:14, flexWrap:'wrap',
+                }}>
                   <div>
-                    <span style={{ fontSize:14, fontWeight:600 }}>{tmpl.name}</span>
-                    <span style={{ fontSize:12, color:'var(--text-muted)', marginLeft:8 }}>
-                      reset {tmpl.reset_time} · {(tmpl.items||[]).filter((i:TemplateItem)=>i.is_active).length} รายการ active
-                    </span>
+                    <div className="section-label" style={{ marginBottom:3 }}>Template</div>
+                    <div style={{ fontSize:16, fontWeight:700 }}>{defaultTemplate.name}</div>
+                    <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
+                      reset {defaultTemplate.reset_time} · {(defaultTemplate.items || []).length} รายการ
+                    </div>
                   </div>
-                  <button className="btn btn-ghost btn-sm"
-                    onClick={() => setExpanded(expandedTmpl===tmpl.id ? null : tmpl.id)}>
-                    {expandedTmpl===tmpl.id ? '▲ ซ่อน' : '▼ แสดง'}
+                  <button className="btn btn-primary btn-sm"
+                    onClick={() => setChecklistEditor({ open:true, templateId:defaultTemplate.id, item:null })}>
+                    + เพิ่มรายการ
                   </button>
                 </div>
 
-                {expandedTmpl===tmpl.id && (
-                  <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:8 }}>
-                    {(tmpl.items || []).length === 0 && (
-                      <div style={{ ...box, color:'var(--text-muted)', fontSize:13 }}>
-                        ยังไม่มีรายการใน checklist นี้
-                      </div>
-                    )}
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {(defaultTemplate.items || []).length === 0 && (
+                    <div style={{ ...box, color:'var(--text-muted)', fontSize:13 }}>
+                      ยังไม่มีรายการใน checklist นี้
+                    </div>
+                  )}
 
-                    {(tmpl.items || []).map((it:TemplateItem) => (
-                      <div key={it.id} style={{
-                        display:'flex', alignItems:'center', gap:8,
-                        padding:'9px 10px', borderRadius:'var(--radius-sm)',
-                        background:'var(--bg)', border:'1px solid var(--border-subtle)',
-                        opacity:it.is_active ? 1 : 0.45,
-                      }}>
-                        <input type="checkbox" checked={it.is_active}
-                          onChange={() => toggleItem(it.id, it.is_active)} style={{ cursor:'pointer' }} />
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:13, fontWeight:500 }}>{it.title}</div>
-                          <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>
-                            {scheduleLabel(it)}
-                          </div>
+                  {(defaultTemplate.items || []).map((it:TemplateItem) => (
+                    <div key={it.id} style={{
+                      display:'flex', alignItems:'center', gap:8,
+                      padding:'10px 10px', borderRadius:'var(--radius-sm)',
+                      background:'var(--bg)', border:'1px solid var(--border-subtle)',
+                      opacity:it.is_active ? 1 : 0.45,
+                    }}>
+                      <input type="checkbox" checked={it.is_active}
+                        onChange={() => toggleItem(it.id, it.is_active)} style={{ cursor:'pointer' }} />
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                          <span style={{ fontSize:13, fontWeight:600 }}>{it.title}</span>
+                          {it.category && (
+                            <span className="badge" style={{
+                              color:it.category.color,
+                              borderColor:it.category.color,
+                              background:'rgba(255,255,255,0.72)',
+                            }}>
+                              {it.category.icon} {it.category.name}
+                            </span>
+                          )}
+                          {it.tag && (
+                            <span className="badge" style={{
+                              background:it.tag.color_bg,
+                              color:it.tag.color_text,
+                              borderColor:it.tag.color_border,
+                            }}>
+                              {it.tag.name}
+                            </span>
+                          )}
                         </div>
-                        <button className="btn btn-ghost btn-icon btn-sm" style={{ fontSize:12 }}
-                          onClick={() => setChecklistEditor({ open:true, templateId:tmpl.id, item:it })}>✏</button>
-                        <button className="btn btn-ghost btn-icon btn-sm" style={{ color:'var(--text-muted)', fontSize:13 }}
-                          onClick={() => deleteItem(it.id)}>🗑</button>
+                        <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>
+                          {scheduleLabel(it)}
+                        </div>
                       </div>
-                    ))}
-
-                    <button className="btn btn-secondary btn-sm" style={{ alignSelf:'flex-start', marginTop:4 }}
-                      onClick={() => setChecklistEditor({ open:true, templateId:tmpl.id, item:null })}>
-                      + เพิ่มรายการ
-                    </button>
-                  </div>
-                )}
+                      <button className="btn btn-ghost btn-icon btn-sm" style={{ fontSize:12 }}
+                        onClick={() => setChecklistEditor({ open:true, templateId:defaultTemplate.id, item:it })}
+                        aria-label="แก้ไขรายการ">✏</button>
+                      <button className="btn btn-ghost btn-icon btn-sm" style={{ color:'var(--text-muted)', fontSize:13 }}
+                        onClick={() => deleteItem(it.id)}
+                        aria-label="ลบรายการ">🗑</button>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
           </div>
         )}
 

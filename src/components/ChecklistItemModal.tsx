@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react';
-import { TemplateItem } from '@/types';
+import { Category, Tag, TemplateItem } from '@/types';
 import DatePicker, { DatePickerValue } from './DatePicker';
 
 interface Props {
@@ -37,6 +37,10 @@ function scheduleFromItem(item?: TemplateItem | null): DatePickerValue {
 
 export default function ChecklistItemModal({ open, templateId, item, onClose, onSaved }: Props) {
   const [title, setTitle] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [tagId, setTagId] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [schedule, setSchedule] = useState<DatePickerValue>(INITIAL_SCHEDULE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -44,9 +48,25 @@ export default function ChecklistItemModal({ open, templateId, item, onClose, on
   useEffect(() => {
     if (!open) return;
     setTitle(item?.title || '');
+    setCategoryId(item?.category_id || '');
+    setTagId(item?.tag_id || '');
     setSchedule(scheduleFromItem(item));
     setError('');
   }, [open, item]);
+
+  useEffect(() => {
+    if (!open) return;
+    Promise.all([
+      fetch('/api/categories').then(res => res.json()),
+      fetch('/api/tags').then(res => res.json()),
+    ]).then(([categoryData, tagData]) => {
+      setCategories(categoryData.data || []);
+      setTags(tagData.data || []);
+    }).catch(() => {
+      setCategories([]);
+      setTags([]);
+    });
+  }, [open]);
 
   if (!open) return null;
 
@@ -63,6 +83,8 @@ export default function ChecklistItemModal({ open, templateId, item, onClose, on
       template_id: templateId,
       item_id: item?.id,
       title: title.trim(),
+      category_id: categoryId || null,
+      tag_id: tagId || null,
       ...schedule,
       recur_start: schedule.recur_type === 'once' ? schedule.due_date : schedule.recur_start,
     };
@@ -128,6 +150,34 @@ export default function ChecklistItemModal({ open, templateId, item, onClose, on
           <div>
             <div className="section-label" style={{ marginBottom:8 }}>วันที่ต้องทำ</div>
             <DatePicker value={schedule} onChange={setSchedule} showTime={false} />
+          </div>
+
+          <div className="calendar-modal-row">
+            <div style={{ flex:1 }}>
+              <label style={{ display:'block', fontSize:12, fontWeight:500, marginBottom:6, color:'var(--text-secondary)' }}>
+                หมวดหมู่
+              </label>
+              <select className="input" value={categoryId} onChange={e => setCategoryId(e.target.value)}>
+                <option value="">ไม่เลือกหมวดหมู่</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.icon} {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ flex:1 }}>
+              <label style={{ display:'block', fontSize:12, fontWeight:500, marginBottom:6, color:'var(--text-secondary)' }}>
+                Tag
+              </label>
+              <select className="input" value={tagId} onChange={e => setTagId(e.target.value)}>
+                <option value="">ไม่เลือก tag</option>
+                {tags.map(tag => (
+                  <option key={tag.id} value={tag.id}>{tag.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
