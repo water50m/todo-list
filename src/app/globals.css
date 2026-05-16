@@ -278,6 +278,15 @@ textarea.input { resize: vertical; }
   transform: translate(-50%, -50%);
 }
 
+.calendar-modal-row {
+  display: flex;
+  gap: 10px;
+}
+
+.calendar-modal-row > * {
+  min-width: 0;
+}
+
 .calendar-day-cell {
   font-family: var(--font-body);
   color: var(--text-primary);
@@ -299,6 +308,45 @@ textarea.input { resize: vertical; }
 
 .calendar-day-blank {
   min-height: 150px;
+}
+
+.calendar-toolbar {
+  justify-content: flex-end;
+}
+
+.calendar-month-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-month-arrow {
+  min-width: 34px;
+}
+
+.calendar-month-select {
+  width: 150px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.calendar-year-select {
+  width: 90px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.calendar-day-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.calendar-appointment-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: flex-start;
 }
 
 .task-drawer {
@@ -512,6 +560,15 @@ textarea.input { resize: vertical; }
     padding-inline: 14px;
   }
 
+  .calendar-page {
+    width: 100%;
+  }
+
+  .calendar-page .page-header {
+    align-items: center !important;
+    text-align: center;
+  }
+
   .app-topbar {
     margin-bottom: 14px;
   }
@@ -539,6 +596,66 @@ textarea.input { resize: vertical; }
     padding-bottom: 2px;
   }
 
+  .calendar-toolbar {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .calendar-month-controls {
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .calendar-month-arrow {
+    min-width: 38px;
+    min-height: 34px;
+  }
+
+  .calendar-month-select {
+    width: min(100%, 150px) !important;
+    min-height: 34px;
+  }
+
+  .calendar-year-select {
+    width: 82px !important;
+    min-height: 34px;
+  }
+
+  .calendar-filter-btn {
+    width: auto !important;
+    min-height: 30px;
+    padding: 4px 10px;
+    justify-content: center;
+  }
+
+  .calendar-toolbar > .calendar-filter-btn {
+    width: auto !important;
+    display: inline-flex;
+  }
+
+  .calendar-toolbar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .calendar-toolbar > div {
+    grid-column: 1 / -1;
+  }
+
+  .calendar-day-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-appointment-row {
+    flex-direction: column;
+  }
+
+  .calendar-appointment-row > div:last-child {
+    align-self: flex-start;
+  }
+
   .dashboard-stats,
   .quick-actions-grid {
     grid-template-columns: 1fr;
@@ -551,6 +668,15 @@ textarea.input { resize: vertical; }
 
   .calendar-day-blank {
     min-height: 86px;
+  }
+
+  .calendar-modal {
+    width: calc(100vw - 28px);
+    max-height: calc(100vh - 28px);
+  }
+
+  .calendar-modal-row {
+    flex-direction: column;
   }
 
   .card {

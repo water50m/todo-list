@@ -120,6 +120,18 @@ export default function CalendarPage() {
     setSelected(new Date(next.getFullYear(), next.getMonth(), Math.min(selected.getDate(), lastDay)));
   };
 
+  const setMonthValue = (nextMonth: number) => {
+    const lastDay = new Date(year, nextMonth + 1, 0).getDate();
+    setMonth(nextMonth);
+    setSelected(new Date(year, nextMonth, Math.min(selected.getDate(), lastDay)));
+  };
+
+  const setYearValue = (nextYear: number) => {
+    const lastDay = new Date(nextYear, month + 1, 0).getDate();
+    setYear(nextYear);
+    setSelected(new Date(nextYear, month, Math.min(selected.getDate(), lastDay)));
+  };
+
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const monthDays = Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1));
@@ -202,13 +214,20 @@ export default function CalendarPage() {
                 รวม daily checklist, task และนัดหมายในเดือนเดียวกัน
               </p>
             </div>
-            <div className="toolbar">
-              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => changeMonth(-1)}>‹</button>
-                <span style={{ fontSize:13, fontWeight:600, minWidth:130, textAlign:'center' }}>
-                  {TH_MONTHS[month]} {year}
-                </span>
-                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => changeMonth(1)}>›</button>
+            <div className="toolbar calendar-toolbar">
+              <div className="calendar-month-controls">
+                <button className="btn btn-secondary btn-icon btn-sm calendar-month-arrow" onClick={() => changeMonth(-1)}>‹</button>
+                <select className="input calendar-month-select" value={month} onChange={e => setMonthValue(Number(e.target.value))}>
+                  {TH_MONTHS.map((name, index) => (
+                    <option key={name} value={index}>{name}</option>
+                  ))}
+                </select>
+                <select className="input calendar-year-select" value={year} onChange={e => setYearValue(Number(e.target.value))}>
+                  {Array.from({ length: 9 }, (_, index) => year - 4 + index).map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                <button className="btn btn-secondary btn-icon btn-sm calendar-month-arrow" onClick={() => changeMonth(1)}>›</button>
                 {loading && <span className="spinner" style={{ width:14, height:14 }} />}
               </div>
               {([
@@ -218,7 +237,7 @@ export default function CalendarPage() {
               ] as const).map(([key, label]) => (
                 <button
                   key={key}
-                  className={`btn btn-sm ${filters[key] ? 'btn-primary' : 'btn-secondary'}`}
+                  className={`btn btn-sm calendar-filter-btn ${filters[key] ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setFilters(f => ({ ...f, [key]: !f[key] }))}
                 >
                   {label}
@@ -302,10 +321,10 @@ export default function CalendarPage() {
                   เลือกจากช่องวันในปฏิทินเพื่อดูรายละเอียดหรือเพิ่มนัดหมาย
                 </div>
               </div>
-              <button className="btn btn-primary btn-sm" onClick={() => openCreate(selected)}>+ เพิ่มนัดหมายวันนี้</button>
+              <button className="btn btn-primary btn-sm" onClick={() => openCreate(selected)}>+ เพิ่มนัดหมาย</button>
             </div>
 
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:12 }}>
+            <div className="calendar-day-detail-grid">
               <div>
                 <div className="section-label" style={{ marginBottom:8 }}>Daily Checklist</div>
                 {selectedEvents.checklists.length === 0 ? (
@@ -342,8 +361,8 @@ export default function CalendarPage() {
                     border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-sm)',
                     background:'var(--bg)',
                   }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', gap:8, alignItems:'flex-start' }}>
-                      <div style={{ minWidth:0 }}>
+                    <div className="calendar-appointment-row">
+                      <div style={{ minWidth:0, flex:1 }}>
                         <div style={{ fontWeight:500 }}>{a.title}</div>
                         <div style={{ color:'var(--text-muted)', marginTop:2 }}>
                           {a.is_all_day ? 'ทั้งวัน' : `${fmtTime(a.start_at)} - ${fmtTime(a.end_at)}`}
@@ -375,7 +394,6 @@ export default function CalendarPage() {
           <div className="card calendar-modal" style={{
             zIndex: 101, padding: 24,
             boxShadow: 'var(--shadow-lg)', overflowY: 'auto',
-            animation: 'fadeIn 0.18s ease both',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ fontSize: 16, fontWeight: 600 }}>{editId ? 'แก้ไขนัดหมาย' : 'เพิ่มนัดหมาย'}</h3>
@@ -399,7 +417,7 @@ export default function CalendarPage() {
               </div>
 
               {!form.is_all_day && (
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div className="calendar-modal-row">
                   <div style={{ flex: 1 }}>
                     <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>เริ่ม *</label>
                     <input type="datetime-local" className="input" value={form.start_at} onChange={e => setF({ start_at: e.target.value })} />
@@ -411,7 +429,7 @@ export default function CalendarPage() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: 10 }}>
+              <div className="calendar-modal-row">
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>สถานะ</label>
                   <select className="input" value={form.status} onChange={e => setF({ status: e.target.value as AppointmentStatus })}>
