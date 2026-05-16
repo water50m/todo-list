@@ -11,6 +11,13 @@ CREATE TABLE IF NOT EXISTS users (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
+UPDATE users
+SET pin_hash = 'scrypt:8304321e25c4423554a89bccbb85bcda:ac07ad88d0bdbd17ebb9d33479d37823b18aac2d117168af3550746afeb51a5ac243e2c61bce2c62aec8dd990deac749d81c1206d20846ce7f9fbac9ce06e37a'
+WHERE pin_hash IS NULL;
+ALTER TABLE users ALTER COLUMN pin_hash SET NOT NULL;
+
 CREATE TABLE IF NOT EXISTS categories (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
