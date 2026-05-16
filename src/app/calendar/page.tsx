@@ -1,6 +1,5 @@
 // app/calendar/page.tsx
 'use client';
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Appointment, AppointmentStatus, CalendarDayEvents, CalendarEventsResponse } from '@/types';
 import Toaster from '@/components/Toaster';
@@ -72,7 +71,7 @@ export default function CalendarPage() {
   const [month, setMonth]   = useState(today.getMonth());
   const [selected, setSelected] = useState<Date>(today);
   const [calendar, setCalendar] = useState<CalendarEventsResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [navLoading, setNavLoading] = useState<'prev' | 'next' | null>(null);
 
   const [filters, setFilters] = useState({
     appointments: true,
@@ -95,10 +94,12 @@ export default function CalendarPage() {
   const monthTo = new Date(year, month + 1, 0).toISOString().split('T')[0];
 
   const fetchCalendar = useCallback(async () => {
-    setLoading(true);
-    const eventRes = await fetch(`/api/calendar/events?from=${monthFrom}&to=${monthTo}`).then(r => r.json());
-    setCalendar(eventRes.data || null);
-    setLoading(false);
+    try {
+      const eventRes = await fetch(`/api/calendar/events?from=${monthFrom}&to=${monthTo}`).then(r => r.json());
+      setCalendar(eventRes.data || null);
+    } finally {
+      setNavLoading(null);
+    }
   }, [monthFrom, monthTo]);
 
   useEffect(() => { fetchCalendar(); }, [fetchCalendar]);
@@ -113,6 +114,7 @@ export default function CalendarPage() {
   const selectedEvents = dayMap.get(selectedKey) || { ...EMPTY_DAY, date: selectedKey };
 
   const changeMonth = (delta: number) => {
+    setNavLoading(delta < 0 ? 'prev' : 'next');
     const next = new Date(year, month + delta, 1);
     const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
     setYear(next.getFullYear());
@@ -121,12 +123,14 @@ export default function CalendarPage() {
   };
 
   const setMonthValue = (nextMonth: number) => {
+    setNavLoading(null);
     const lastDay = new Date(year, nextMonth + 1, 0).getDate();
     setMonth(nextMonth);
     setSelected(new Date(year, nextMonth, Math.min(selected.getDate(), lastDay)));
   };
 
   const setYearValue = (nextYear: number) => {
+    setNavLoading(null);
     const lastDay = new Date(nextYear, month + 1, 0).getDate();
     setYear(nextYear);
     setSelected(new Date(nextYear, month, Math.min(selected.getDate(), lastDay)));
@@ -216,7 +220,9 @@ export default function CalendarPage() {
             </div>
             <div className="toolbar calendar-toolbar">
               <div className="calendar-month-controls">
-                <button className="btn btn-secondary btn-icon btn-sm calendar-month-arrow" onClick={() => changeMonth(-1)}>‹</button>
+                <button className="btn btn-secondary btn-icon btn-sm calendar-month-arrow" onClick={() => changeMonth(-1)} disabled={navLoading === 'prev'}>
+                  {navLoading === 'prev' ? <span className="spinner" style={{ width:14, height:14 }} /> : '‹'}
+                </button>
                 <select className="input calendar-month-select" value={month} onChange={e => setMonthValue(Number(e.target.value))}>
                   {TH_MONTHS.map((name, index) => (
                     <option key={name} value={index}>{name}</option>
@@ -227,8 +233,9 @@ export default function CalendarPage() {
                     <option key={y} value={y}>{y}</option>
                   ))}
                 </select>
-                <button className="btn btn-secondary btn-icon btn-sm calendar-month-arrow" onClick={() => changeMonth(1)}>›</button>
-                {loading && <span className="spinner" style={{ width:14, height:14 }} />}
+                <button className="btn btn-secondary btn-icon btn-sm calendar-month-arrow" onClick={() => changeMonth(1)} disabled={navLoading === 'next'}>
+                  {navLoading === 'next' ? <span className="spinner" style={{ width:14, height:14 }} /> : '›'}
+                </button>
               </div>
               {([
                 ['appointments', 'นัดหมาย'],
