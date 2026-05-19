@@ -248,6 +248,84 @@ function WeekDailyCard({ data }: { data: Array<{date:string; done:number; total:
   );
 }
 
+function ChecklistRankingCard({ rankings, onOpen }: {
+  rankings: DashboardStats['checklist_rankings'];
+  onOpen: () => void;
+}) {
+  return (
+    <div className="card" style={{ padding:'16px 20px' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+        <div>
+          <div style={{ fontSize:13, fontWeight:700 }}>อันดับ Checklist ต่อเนื่อง</div>
+          <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>วัดจาก log 30 วันล่าสุด</div>
+        </div>
+        <button className="btn btn-ghost btn-sm" onClick={onOpen}>เปิด Daily →</button>
+      </div>
+
+      {!rankings.length ? (
+        <div style={{ fontSize:12, color:'var(--text-muted)', padding:'8px 0' }}>
+          ยังไม่มีข้อมูลพอสำหรับจัดอันดับ
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:9 }}>
+          {rankings.map((item, index) => {
+            const rankColor = index === 0 ? 'var(--high)' : index === 1 ? 'var(--accent-2)' : 'var(--text-secondary)';
+            return (
+              <div key={item.id} style={{
+                display:'grid',
+                gridTemplateColumns:'34px minmax(0, 1fr) auto',
+                gap:10,
+                alignItems:'center',
+                padding:'10px 12px',
+                background:'var(--bg)',
+                border:'1px solid var(--border-subtle)',
+                borderRadius:'var(--radius-md)',
+              }}>
+                <div style={{
+                  width:28, height:28, borderRadius:'50%',
+                  display:'grid', placeItems:'center',
+                  background:index === 0 ? 'var(--high-bg)' : 'var(--bg-card)',
+                  border:`1px solid ${index === 0 ? '#FDE68A' : 'var(--border)'}`,
+                  color:rankColor,
+                  fontSize:12,
+                  fontWeight:800,
+                }}>
+                  #{index + 1}
+                </div>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:650, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {item.title}
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:5 }}>
+                    <div style={{ flex:1, background:'var(--bg-muted)', height:7, borderRadius:99, overflow:'hidden' }}>
+                      <div style={{
+                        width:`${item.completion_rate}%`,
+                        height:'100%',
+                        borderRadius:99,
+                        background:item.completion_rate >= 80 ? 'var(--success)' : item.completion_rate >= 50 ? 'var(--accent-2)' : 'var(--high)',
+                      }} />
+                    </div>
+                    <span style={{ fontSize:11, color:'var(--text-muted)', flexShrink:0 }}>
+                      {item.done_count}/{item.total_count}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ textAlign:'right', minWidth:70 }}>
+                  <div style={{ fontSize:18, fontWeight:800, color:rankColor, lineHeight:1 }}>
+                    {item.current_streak}
+                  </div>
+                  <div style={{ fontSize:10, color:'var(--text-muted)', marginTop:3 }}>ครั้งติดกัน</div>
+                  <div style={{ fontSize:11, color:'var(--text-secondary)', marginTop:3 }}>{item.completion_rate}%</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TaskSnapshotCard({ stats, onOpen }: { stats: DashboardStats; onOpen: () => void }) {
   return (
     <div className="card" style={{ padding:'16px 20px' }}>
@@ -348,22 +426,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="dashboard-grid">
+        <ChecklistRankingCard rankings={stats.checklist_rankings || []} onOpen={() => router.push('/daily')} />
         <TaskSnapshotCard stats={stats} onOpen={() => router.push('/tasks')} />
-        {stats.upcoming_appointments.length === 0 ? (
-          <UpcomingAppointmentsCard appointments={stats.upcoming_appointments} nowMs={nowMs} onOpen={() => router.push('/calendar')} />
-        ) : (
-          <div className="card" style={{ padding:'16px 20px' }}>
-            <div style={{ fontSize:13, fontWeight:700, marginBottom:10 }}>ทางลัด Daily</div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0, 1fr))', gap:8 }}>
-              <button className="btn btn-secondary" onClick={() => router.push('/daily')} style={{ justifyContent:'center' }}>
-                เปิด Daily
-              </button>
-              <button className="btn btn-secondary" onClick={() => router.push('/settings')} style={{ justifyContent:'center' }}>
-                แก้ Template
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="quick-actions-grid">

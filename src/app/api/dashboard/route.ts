@@ -12,6 +12,7 @@ export async function GET() {
       tasksByPriority,
       tasksByCategory,
       dailyCompletion,
+      checklistRankingRows,
       upcomingAppts,
       recurringTasks,
       streakRow,
@@ -54,6 +55,36 @@ export async function GET() {
          FROM checklist_logs
          WHERE user_id = $1 AND log_date >= CURRENT_DATE - 6
          ORDER BY log_date ASC`,
+        [userId]
+      ),
+
+      // Checklist item consistency ranking (last 30 logged occurrences)
+      pool.query<{
+        id: string;
+        title: string;
+        date: string | null;
+        is_done: boolean | null;
+      }>(
+        `SELECT
+          ti.id,
+          ti.title,
+          item_log.log_date::text AS date,
+          item_log.is_done
+         FROM template_items ti
+         JOIN daily_templates dt ON dt.id = ti.template_id
+         LEFT JOIN (
+           SELECT
+             cil.template_item_id,
+             cl.log_date,
+             cil.is_done
+           FROM checklist_item_logs cil
+           JOIN checklist_logs cl ON cl.id = cil.log_id
+           WHERE cl.user_id = $1
+             AND cl.log_date >= CURRENT_DATE - 29
+         ) item_log ON item_log.template_item_id = ti.id
+         WHERE dt.user_id = $1
+           AND ti.is_active = true
+         ORDER BY ti.sort_order, ti.title, item_log.log_date DESC`,
         [userId]
       ),
 
@@ -103,6 +134,52 @@ export async function GET() {
     const byPriority: Record<string, number> = {};
     for (const r of tasksByPriority.rows) byPriority[r.priority] = parseInt(r.count);
 
+    const rankingMap = new Map<string, {
+      id: string;
+      title: string;
+      logs: Array<{ date: string; is_done: boolean }>;
+    }>();
+
+    for (const row of checklistRankingRows.rows) {
+      const current = rankingMap.get(row.id) || { id: row.id, title: row.title, logs: [] };
+      if (row.date) {
+        current.logs.push({ date: row.date, is_done: !!row.is_done });
+      }
+      rankingMap.set(row.id, current);
+    }
+
+    const checklistRankings = Array.from(rankingMap.values())
+      .map(item => {
+        const logs = item.logs.sort((a, b) => b.date.localeCompare(a.date));
+        let currentStreak = 0;
+        for (const log of logs) {
+          if (!log.is_done) break;
+          currentStreak += 1;
+        }
+
+        const doneCount = logs.filter(log => log.is_done).length;
+        const totalCount = logs.length;
+        const lastDone = logs.find(log => log.is_done)?.date;
+
+        return {
+          id: item.id,
+          title: item.title,
+          current_streak: currentStreak,
+          completion_rate: totalCount ? Math.round((doneCount / totalCount) * 100) : 0,
+          done_count: doneCount,
+          total_count: totalCount,
+          last_done_date: lastDone,
+        };
+      })
+      .filter(item => item.total_count > 0)
+      .sort((a, b) =>
+        b.current_streak - a.current_streak ||
+        b.completion_rate - a.completion_rate ||
+        b.done_count - a.done_count ||
+        a.title.localeCompare(b.title)
+      )
+      .slice(0, 5);
+
     const stats: DashboardStats = {
       total_tasks: total,
       done_tasks: done,
@@ -119,6 +196,7 @@ export async function GET() {
         name: r.name, color: r.color, count: parseInt(r.count),
       })),
       daily_completion: dailyCompletion.rows,
+      checklist_rankings: checklistRankings,
       upcoming_appointments: upcomingAppts.rows,
       recurring_tasks: recurringTasks.rows.map(r => ({
         title: r.title,
