@@ -2,13 +2,22 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { DashboardStats, Appointment } from '@/types';
+import { Appointment, ChecklistItemLog, ChecklistLog, DashboardStats } from '@/types';
 
-const PRIORITY_ORDER = ['urgent','high','med','low'] as const;
-const PRIORITY_LABELS: Record<string,string> = { urgent:'ด่วนมาก', high:'สำคัญ', med:'ปกติ', low:'ไม่เร่ง' };
-const PRIORITY_COLORS: Record<string,string> = {
-  urgent:'var(--urgent)', high:'var(--high)', med:'var(--med)', low:'var(--low)',
-};
+function pct(done: number, total: number) {
+  return total > 0 ? Math.round((done / total) * 100) : 0;
+}
+
+function shortDate(date: string) {
+  return new Date(date).toLocaleDateString('th-TH', { weekday:'short', day:'numeric' });
+}
+
+function localDateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 function StatCard({ value, label, sub, accent, onClick }: {
   value: string|number; label: string; sub?: string; accent?: string; onClick?: () => void;
@@ -21,54 +30,39 @@ function StatCard({ value, label, sub, accent, onClick }: {
     }}
     onMouseEnter={e => { if (onClick) e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
     onMouseLeave={e => { if (onClick) e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}>
-      <div style={{ fontSize: 28, fontWeight: 600, color: accent || 'var(--text-primary)', lineHeight: 1.1 }}>{value}</div>
-      <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>{label}</div>
-      {sub && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{sub}</div>}
-    </div>
-  );
-}
-
-function BarRow({ label, value, max, color }: { label:string; value:number; max:number; color:string }) {
-  const pct = max > 0 ? Math.round((value/max)*100) : 0;
-  return (
-    <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
-      <span style={{ width:80, fontSize:12, color:'var(--text-secondary)', flexShrink:0 }}>{label}</span>
-      <div style={{ flex:1, background:'var(--bg-muted)', borderRadius:99, height:8, overflow:'hidden' }}>
-        <div style={{ height:'100%', borderRadius:99, background:color, width:`${pct}%`, transition:'width 0.6s ease' }} />
-      </div>
-      <span style={{ width:24, fontSize:12, color:'var(--text-primary)', textAlign:'right', flexShrink:0 }}>{value}</span>
+      <div style={{ fontSize:28, fontWeight:700, color:accent || 'var(--text-primary)', lineHeight:1.1 }}>{value}</div>
+      <div style={{ fontSize:13, color:'var(--text-secondary)', marginTop:4 }}>{label}</div>
+      {sub && <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:3 }}>{sub}</div>}
     </div>
   );
 }
 
 function MiniLineChart({ data }: { data: Array<{date:string; done:number; total:number}> }) {
   if (!data.length) return (
-    <div style={{ height:80, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-muted)', fontSize:12 }}>
-      ไม่มีข้อมูล
+    <div style={{ height:100, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-muted)', fontSize:12 }}>
+      ยังไม่มีข้อมูล daily checklist
     </div>
   );
   const maxVal = Math.max(...data.map(d => d.total), 1);
-  const W=280, H=80, PAD=6;
+  const W=320, H=96, PAD=8;
   const xStep = (W-PAD*2) / Math.max(data.length-1, 1);
   const pts = (key: 'done'|'total') =>
     data.map((d,i) => `${PAD+i*xStep},${H-PAD-(d[key]/maxVal)*(H-PAD*2)}`).join(' ');
-  const TH_D = ['อา','จ','อ','พ','พฤ','ศ','ส'];
   return (
-    <svg viewBox={`0 0 ${W} ${H+18}`} style={{ width:'100%', overflow:'visible' }}>
+    <svg viewBox={`0 0 ${W} ${H+22}`} style={{ width:'100%', overflow:'visible' }}>
       <polyline points={pts('total')} fill="none" stroke="var(--border)" strokeWidth={1.5} strokeDasharray="4 3" />
       {data.length > 1 && (
         <polygon
           points={`${PAD},${H-PAD} ${pts('done')} ${PAD+(data.length-1)*xStep},${H-PAD}`}
-          fill="var(--med)" opacity={0.12} />
+          fill="var(--accent-2)" opacity={0.12} />
       )}
-      <polyline points={pts('done')} fill="none" stroke="var(--med)" strokeWidth={2} strokeLinejoin="round" />
+      <polyline points={pts('done')} fill="none" stroke="var(--accent-2)" strokeWidth={2.5} strokeLinejoin="round" />
       {data.map((d,i) => {
         const x=PAD+i*xStep, y=H-PAD-(d.done/maxVal)*(H-PAD*2);
-        const dow = new Date(d.date).getDay();
         return (
-          <g key={i}>
-            <circle cx={x} cy={y} r={3} fill="var(--med)" />
-            <text x={x} y={H+14} textAnchor="middle" fontSize={9} fill="var(--text-muted)">{TH_D[dow]}</text>
+          <g key={d.date}>
+            <circle cx={x} cy={y} r={3.5} fill="var(--accent-2)" />
+            <text x={x} y={H+16} textAnchor="middle" fontSize={9} fill="var(--text-muted)">{shortDate(d.date)}</text>
           </g>
         );
       })}
@@ -81,9 +75,7 @@ function UpcomingAppointmentsCard({ appointments, nowMs, onOpen }: { appointment
     <div className="card" style={{ padding:'16px 20px' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
         <div style={{ fontSize:13, fontWeight:600 }}>นัดหมายที่กำลังจะมา (7 วัน)</div>
-        <button className="btn btn-ghost btn-sm" onClick={onOpen}>
-          ดูทั้งหมด →
-        </button>
+        <button className="btn btn-ghost btn-sm" onClick={onOpen}>ดูทั้งหมด →</button>
       </div>
       {appointments.length === 0 ? (
         <div style={{ fontSize:12, color:'var(--text-muted)', padding:'4px 0' }}>ไม่มีนัดหมายในช่วงนี้</div>
@@ -132,17 +124,174 @@ function UpcomingAppointmentsCard({ appointments, nowMs, onOpen }: { appointment
   );
 }
 
+function TodayChecklistCard({ log, onOpen }: { log: ChecklistLog | null; onOpen: () => void }) {
+  const items = (log?.items || []).slice(0, 6);
+  const rate = pct(log?.done_items || 0, log?.total_items || 0);
+
+  return (
+    <div className="card" style={{ padding:'18px 20px' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:14, marginBottom:14 }}>
+        <div>
+          <div style={{ fontSize:13, fontWeight:700 }}>Daily Checklist วันนี้</div>
+          <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
+            {(log?.done_items || 0)}/{(log?.total_items || 0)} รายการเสร็จแล้ว
+          </div>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={onOpen}>เปิด Daily</button>
+      </div>
+
+      <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:16 }}>
+        <div style={{
+          width:78, height:78, borderRadius:'50%',
+          display:'grid', placeItems:'center',
+          background:`conic-gradient(var(--accent-2) ${rate * 3.6}deg, var(--bg-muted) 0deg)`,
+          flexShrink:0,
+        }}>
+          <div style={{
+            width:58, height:58, borderRadius:'50%', background:'var(--bg-card)',
+            display:'grid', placeItems:'center', fontSize:18, fontWeight:800,
+          }}>
+            {rate}%
+          </div>
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ background:'var(--bg-muted)', borderRadius:99, height:10, overflow:'hidden' }}>
+            <div style={{
+              width:`${rate}%`, height:'100%', borderRadius:99,
+              background: rate === 100 ? 'var(--success)' : 'var(--accent-2)',
+              transition:'width 0.5s ease',
+            }} />
+          </div>
+          <div style={{ fontSize:12, color:'var(--text-secondary)', marginTop:8 }}>
+            {rate === 100 ? 'วันนี้ครบแล้ว เยี่ยมมาก' : log?.total_items ? `เหลือ ${(log.total_items - log.done_items)} รายการ` : 'วันนี้ยังไม่มี checklist'}
+          </div>
+        </div>
+      </div>
+
+      {items.length === 0 ? (
+        <div style={{ fontSize:12, color:'var(--text-muted)', padding:'8px 0' }}>ยังไม่มีรายการสำหรับวันนี้</div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+          {items.map((item: ChecklistItemLog) => (
+            <div key={item.id} style={{
+              display:'flex', alignItems:'center', gap:9,
+              padding:'8px 10px', border:'1px solid var(--border-subtle)',
+              borderRadius:'var(--radius-md)', background:'var(--bg)',
+            }}>
+              <span style={{
+                width:18, height:18, borderRadius:'var(--radius-sm)',
+                display:'grid', placeItems:'center',
+                border:`1px solid ${item.is_done ? 'var(--success)' : 'var(--border)'}`,
+                background:item.is_done ? 'var(--success)' : 'var(--bg-card)',
+                color:'white', fontSize:10, flexShrink:0,
+              }}>
+                {item.is_done ? '✓' : ''}
+              </span>
+              <span style={{
+                flex:1, minWidth:0, fontSize:13,
+                color:item.is_done ? 'var(--text-muted)' : 'var(--text-primary)',
+                textDecoration:item.is_done ? 'line-through' : 'none',
+              }}>
+                {item.template_item?.title}
+              </span>
+              {item.done_at && (
+                <span style={{ fontSize:11, color:'var(--text-muted)', flexShrink:0 }}>
+                  {new Date(item.done_at).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' })}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WeekDailyCard({ data }: { data: Array<{date:string; done:number; total:number}> }) {
+  const total = data.reduce((sum, day) => sum + day.total, 0);
+  const done = data.reduce((sum, day) => sum + day.done, 0);
+  const completeDays = data.filter(day => day.total > 0 && day.done === day.total).length;
+  const activeDays = data.filter(day => day.total > 0).length;
+  const rate = pct(done, total);
+
+  return (
+    <div className="card" style={{ padding:'16px 20px' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+        <div>
+          <div style={{ fontSize:13, fontWeight:700 }}>ภาพรวม Daily 7 วัน</div>
+          <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>
+            เสร็จ {done}/{total} รายการ
+          </div>
+        </div>
+        <span className="badge" style={{
+          background:'var(--med-bg)', borderColor:'#BFDBFE', color:'var(--med)',
+        }}>
+          เฉลี่ย {rate}%
+        </span>
+      </div>
+      <MiniLineChart data={data} />
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:8, marginTop:12 }}>
+        <div style={{ background:'var(--bg)', border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-md)', padding:'10px' }}>
+          <div style={{ fontSize:17, fontWeight:800 }}>{activeDays}</div>
+          <div style={{ fontSize:11, color:'var(--text-muted)' }}>วันที่มี checklist</div>
+        </div>
+        <div style={{ background:'var(--bg)', border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-md)', padding:'10px' }}>
+          <div style={{ fontSize:17, fontWeight:800, color:'var(--success)' }}>{completeDays}</div>
+          <div style={{ fontSize:11, color:'var(--text-muted)' }}>วันที่ครบทั้งหมด</div>
+        </div>
+        <div style={{ background:'var(--bg)', border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-md)', padding:'10px' }}>
+          <div style={{ fontSize:17, fontWeight:800, color:'var(--accent-2)' }}>{Math.max(total - done, 0)}</div>
+          <div style={{ fontSize:11, color:'var(--text-muted)' }}>รายการที่เหลือ</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TaskSnapshotCard({ stats, onOpen }: { stats: DashboardStats; onOpen: () => void }) {
+  return (
+    <div className="card" style={{ padding:'16px 20px' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+        <div style={{ fontSize:13, fontWeight:700 }}>Task Snapshot</div>
+        <button className="btn btn-ghost btn-sm" onClick={onOpen}>ดู Tasks →</button>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:8 }}>
+        <div style={{ background:'var(--bg)', border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-md)', padding:'10px' }}>
+          <div style={{ fontSize:18, fontWeight:800 }}>{stats.total_tasks}</div>
+          <div style={{ fontSize:11, color:'var(--text-muted)' }}>ทั้งหมด</div>
+        </div>
+        <div style={{ background:'var(--bg)', border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-md)', padding:'10px' }}>
+          <div style={{ fontSize:18, fontWeight:800, color:'var(--success)' }}>{stats.completion_rate}%</div>
+          <div style={{ fontSize:11, color:'var(--text-muted)' }}>เสร็จแล้ว</div>
+        </div>
+        <div style={{ background:'var(--bg)', border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-md)', padding:'10px' }}>
+          <div style={{ fontSize:18, fontWeight:800, color:stats.overdue_tasks ? 'var(--danger)' : 'var(--text-primary)' }}>
+            {stats.overdue_tasks}
+          </div>
+          <div style={{ fontSize:11, color:'var(--text-muted)' }}>เกินกำหนด</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
-  const [stats, setStats]   = useState<DashboardStats | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [todayLog, setTodayLog] = useState<ChecklistLog | null>(null);
   const [loading, setLoading] = useState(true);
   const [nowMs] = useState(() => Date.now());
 
   useEffect(() => {
-    fetch('/api/dashboard').then(r => r.json()).then(d => {
-      setStats(d.data || null);
+    const load = async () => {
+      const today = localDateKey();
+      const checklistData = await fetch(`/api/checklist?date=${today}`).then(r => r.json()).catch(() => ({ data:null }));
+      const dashboardData = await fetch('/api/dashboard').then(r => r.json());
+      setTodayLog(checklistData.data || null);
+      setStats(dashboardData.data || null);
       setLoading(false);
-    });
+    };
+    load().catch(() => setLoading(false));
   }, []);
 
   if (loading) return (
@@ -156,12 +305,13 @@ export default function DashboardPage() {
     </div>
   );
 
-  const maxPriority = Math.max(...Object.values(stats.tasks_by_priority), 1);
-  const maxCategory = Math.max(...stats.tasks_by_category.map(c => c.count), 1);
+  const todayRate = pct(todayLog?.done_items || 0, todayLog?.total_items || 0);
+  const weekDone = stats.daily_completion.reduce((sum, day) => sum + day.done, 0);
+  const weekTotal = stats.daily_completion.reduce((sum, day) => sum + day.total, 0);
+  const weekRate = pct(weekDone, weekTotal);
 
   return (
     <div className="page-stack">
-      {/* Header */}
       <div className="page-header" style={{ alignItems:'flex-end' }}>
         <div>
           <h1 style={{ fontSize:22, fontWeight:600, marginBottom:4 }}>Dashboard</h1>
@@ -178,88 +328,49 @@ export default function DashboardPage() {
         <UpcomingAppointmentsCard appointments={stats.upcoming_appointments} nowMs={nowMs} onOpen={() => router.push('/calendar')} />
       )}
 
-      {/* Stat cards — clickable to filter tasks */}
       <div className="dashboard-stats">
+        <StatCard value={`${todayRate}%`} label="Daily วันนี้"
+          sub={`${todayLog?.done_items || 0}/${todayLog?.total_items || 0} รายการ`}
+          accent="var(--accent-2)" onClick={() => router.push('/daily')} />
         <StatCard value={`🔥 ${stats.streak_count}`} label="Daily Streak"
-          sub="วันติดต่อกัน" accent="var(--high)"
-          onClick={() => router.push('/daily')} />
-        <StatCard value={`${stats.completion_rate}%`} label="Completion Rate"
-          sub={`เสร็จ ${stats.done_tasks} รายการ`} accent="var(--success)"
-          onClick={() => router.push('/tasks?status=done')} />
-        <StatCard value={stats.overdue_tasks} label="เกินกำหนด" sub="ต้องรีบทำ"
+          sub="วันติดต่อกัน" accent="var(--high)" onClick={() => router.push('/daily')} />
+        <StatCard value={`${weekRate}%`} label="Daily 7 วัน"
+          sub={`เสร็จ ${weekDone}/${weekTotal} รายการ`} accent="var(--success)"
+          onClick={() => router.push('/calendar')} />
+        <StatCard value={stats.overdue_tasks} label="Task เกินกำหนด" sub="แสดงแบบย่อ"
           accent={stats.overdue_tasks > 0 ? 'var(--danger)' : undefined}
           onClick={() => router.push('/tasks?status=todo')} />
-        <StatCard value={stats.total_tasks} label="งานทั้งหมด" sub="รายการที่สร้าง"
-          onClick={() => router.push('/tasks')} />
       </div>
 
-      {/* Charts row */}
       <div className="dashboard-grid">
-        <div className="card" style={{ padding:'16px 20px' }}>
-          <div style={{ marginBottom:12 }}>
-            <div style={{ fontSize:13, fontWeight:600 }}>ความคืบหน้า 7 วัน</div>
-            <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2, display:'flex', gap:12 }}>
-              <span><span style={{ color:'var(--med)' }}>——</span> เสร็จ</span>
-              <span style={{ color:'var(--border)' }}>- - -</span>
-              <span style={{ color:'var(--text-muted)' }}>ทั้งหมด</span>
+        <TodayChecklistCard log={todayLog} onOpen={() => router.push('/daily')} />
+        <WeekDailyCard data={stats.daily_completion} />
+      </div>
+
+      <div className="dashboard-grid">
+        <TaskSnapshotCard stats={stats} onOpen={() => router.push('/tasks')} />
+        {stats.upcoming_appointments.length === 0 ? (
+          <UpcomingAppointmentsCard appointments={stats.upcoming_appointments} nowMs={nowMs} onOpen={() => router.push('/calendar')} />
+        ) : (
+          <div className="card" style={{ padding:'16px 20px' }}>
+            <div style={{ fontSize:13, fontWeight:700, marginBottom:10 }}>ทางลัด Daily</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0, 1fr))', gap:8 }}>
+              <button className="btn btn-secondary" onClick={() => router.push('/daily')} style={{ justifyContent:'center' }}>
+                เปิด Daily
+              </button>
+              <button className="btn btn-secondary" onClick={() => router.push('/settings')} style={{ justifyContent:'center' }}>
+                แก้ Template
+              </button>
             </div>
           </div>
-          <MiniLineChart data={stats.daily_completion} />
-        </div>
-
-        <div className="card" style={{ padding:'16px 20px' }}>
-          <div style={{ fontSize:13, fontWeight:600, marginBottom:14 }}>Priority Breakdown</div>
-          {PRIORITY_ORDER.map(p => (
-            <BarRow key={p}
-              label={PRIORITY_LABELS[p]} value={stats.tasks_by_priority[p]}
-              max={maxPriority} color={PRIORITY_COLORS[p]} />
-          ))}
-        </div>
+        )}
       </div>
 
-      {/* Second row */}
-      <div className="dashboard-grid">
-        <div className="card" style={{ padding:'16px 20px' }}>
-          <div style={{ fontSize:13, fontWeight:600, marginBottom:14 }}>หมวดหมู่</div>
-          {stats.tasks_by_category.length === 0 ? (
-            <div style={{ fontSize:12, color:'var(--text-muted)' }}>ยังไม่มีข้อมูล</div>
-          ) : stats.tasks_by_category.map(cat => (
-            <BarRow key={cat.name} label={cat.name} value={cat.count} max={maxCategory} color={cat.color} />
-          ))}
-        </div>
-
-        <div className="card" style={{ padding:'16px 20px' }}>
-          <div style={{ fontSize:13, fontWeight:600, marginBottom:14 }}>Recurring Tasks (30 วัน)</div>
-          {stats.recurring_tasks.length === 0 ? (
-            <div style={{ fontSize:12, color:'var(--text-muted)' }}>ยังไม่มี recurring tasks</div>
-          ) : stats.recurring_tasks.map(rt => (
-            <div key={rt.title} style={{ marginBottom:10 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
-                <span style={{ color:'var(--text-secondary)' }}>{rt.title}</span>
-                <span style={{ fontWeight:500 }}>{rt.completion_rate}%</span>
-              </div>
-              <div style={{ background:'var(--bg-muted)', borderRadius:99, height:6, overflow:'hidden' }}>
-                <div style={{
-                  height:'100%', borderRadius:99, width:`${rt.completion_rate}%`,
-                  background: rt.completion_rate >= 80 ? 'var(--success)' : rt.completion_rate >= 50 ? 'var(--med)' : 'var(--high)',
-                  transition:'width 0.5s ease',
-                }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {stats.upcoming_appointments.length === 0 && (
-        <UpcomingAppointmentsCard appointments={stats.upcoming_appointments} nowMs={nowMs} onOpen={() => router.push('/calendar')} />
-      )}
-
-      {/* Quick actions */}
       <div className="quick-actions-grid">
         {[
-          { icon:'📋', label:'ดู Tasks ทั้งหมด',     href:'/tasks' },
-          { icon:'☀️', label:'Daily Checklist',      href:'/daily' },
-          { icon:'⚙️', label:'จัดการ Template',      href:'/settings' },
+          { icon:'☀️', label:'Daily Checklist', href:'/daily' },
+          { icon:'📅', label:'ปฏิทินรวม', href:'/calendar' },
+          { icon:'⚙️', label:'จัดการ Template', href:'/settings' },
         ].map(a => (
           <button key={a.href} onClick={() => router.push(a.href)}
             className="card btn"
