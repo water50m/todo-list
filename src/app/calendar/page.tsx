@@ -50,6 +50,22 @@ function toLocalISO(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function localDatePart(value: string) {
+  return value ? value.split('T')[0] : '';
+}
+
+function localTimePart(value: string) {
+  return value ? (value.split('T')[1] || '').slice(0, 5) : '';
+}
+
+function withDatePart(value: string, date: string) {
+  return `${date}T${localTimePart(value) || '09:00'}`;
+}
+
+function withTimePart(value: string, time: string) {
+  return `${localDatePart(value) || dateKey(new Date())}T${time}`;
+}
+
 function progressColor(done: number, total: number) {
   if (!total) return 'var(--text-muted)';
   const pct = done / total;
@@ -196,6 +212,50 @@ export default function CalendarPage() {
 
   const setF = (partial: Partial<typeof form>) => setForm(f => ({ ...f, ...partial }));
 
+  const renderChecklistItems = (items: CalendarDayEvents['checklists'][number]['items'], done: boolean) => {
+    const filtered = items.filter(item => item.is_done === done);
+    if (!filtered.length) {
+      return (
+        <div style={{ fontSize:11, color:'var(--text-muted)', padding:'4px 0' }}>
+          {done ? 'ยังไม่มีรายการที่ทำแล้ว' : 'ไม่มีรายการค้าง'}
+        </div>
+      );
+    }
+    return (
+      <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+        {filtered.map(item => (
+          <div key={`${item.template_item_id}-${done ? 'done' : 'todo'}`} style={{
+            display:'flex', alignItems:'center', gap:7,
+            fontSize:12, color: done ? 'var(--success)' : 'var(--text-secondary)',
+            minWidth:0,
+          }}>
+            <span style={{
+              width:16, height:16, borderRadius:'var(--radius-sm)',
+              display:'inline-flex', alignItems:'center', justifyContent:'center',
+              border:`1px solid ${done ? 'var(--success)' : 'var(--border)'}`,
+              background: done ? 'var(--success-bg)' : 'var(--bg-muted)',
+              color: done ? 'var(--success)' : 'var(--text-muted)',
+              fontSize:10, flexShrink:0,
+            }}>
+              {done ? '✓' : '•'}
+            </span>
+            <span style={{
+              overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+              textDecoration: done ? 'line-through' : 'none',
+            }}>
+              {item.title}
+            </span>
+            {done && item.done_at && (
+              <span style={{ marginLeft:'auto', fontSize:10, color:'var(--text-muted)', flexShrink:0 }}>
+                {fmtTime(item.done_at)}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <>
       <Toaster toasts={toast.toasts} onDismiss={toast.dismiss} />
@@ -337,9 +397,38 @@ export default function CalendarPage() {
                 {selectedEvents.checklists.length === 0 ? (
                   <div style={{ fontSize:12, color:'var(--text-muted)' }}>ไม่มี checklist log</div>
                 ) : selectedEvents.checklists.map(item => (
-                  <div key={item.id} style={{ fontSize:12, marginBottom:6, display:'flex', alignItems:'center', gap:7 }}>
-                    <span style={{ width:8, height:8, borderRadius:'50%', background:progressColor(item.done_items, item.total_items) }} />
-                    <span>{item.template_name} {item.done_items}/{item.total_items}</span>
+                  <div key={item.id} style={{
+                    fontSize:12, marginBottom:10, padding:'10px 12px',
+                    border:'1px solid var(--border-subtle)',
+                    borderRadius:'var(--radius-md)',
+                    background:'var(--bg)',
+                  }}>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginBottom:8 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:7, minWidth:0 }}>
+                        <span style={{ width:8, height:8, borderRadius:'50%', background:progressColor(item.done_items, item.total_items), flexShrink:0 }} />
+                        <span style={{ fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                          {item.template_name}
+                        </span>
+                      </div>
+                      <span className="badge" style={{
+                        borderColor:'var(--border)',
+                        background:'var(--bg-card)',
+                        color:'var(--text-secondary)',
+                        flexShrink:0,
+                      }}>
+                        {item.done_items}/{item.total_items}
+                      </span>
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0, 1fr))', gap:10 }}>
+                      <div>
+                        <div style={{ fontSize:10, color:'var(--success)', fontWeight:700, marginBottom:5 }}>ทำแล้ว</div>
+                        {renderChecklistItems(item.items || [], true)}
+                      </div>
+                      <div>
+                        <div style={{ fontSize:10, color:'var(--high)', fontWeight:700, marginBottom:5 }}>ยังไม่ได้ทำ</div>
+                        {renderChecklistItems(item.items || [], false)}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -423,18 +512,31 @@ export default function CalendarPage() {
                 <label htmlFor="allday" style={{ fontSize: 13, cursor: 'pointer' }}>ทั้งวัน</label>
               </div>
 
-              {!form.is_all_day && (
-                <div className="calendar-modal-row">
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>เริ่ม *</label>
-                    <input type="datetime-local" className="input" value={form.start_at} onChange={e => setF({ start_at: e.target.value })} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>สิ้นสุด *</label>
-                    <input type="datetime-local" className="input" value={form.end_at} onChange={e => setF({ end_at: e.target.value })} />
-                  </div>
+              <div className="calendar-modal-row">
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>วันเริ่ม *</label>
+                  <input type="date" className="input" value={localDatePart(form.start_at)} onChange={e => setF({ start_at: withDatePart(form.start_at, e.target.value) })} />
                 </div>
-              )}
+                {!form.is_all_day && (
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>เวลาเริ่ม *</label>
+                    <input type="time" className="input" value={localTimePart(form.start_at)} onChange={e => setF({ start_at: withTimePart(form.start_at, e.target.value) })} />
+                  </div>
+                )}
+              </div>
+
+              <div className="calendar-modal-row">
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>วันสิ้นสุด *</label>
+                  <input type="date" className="input" value={localDatePart(form.end_at)} onChange={e => setF({ end_at: withDatePart(form.end_at, e.target.value) })} />
+                </div>
+                {!form.is_all_day && (
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>เวลาสิ้นสุด *</label>
+                    <input type="time" className="input" value={localTimePart(form.end_at)} onChange={e => setF({ end_at: withTimePart(form.end_at, e.target.value) })} />
+                  </div>
+                )}
+              </div>
 
               <div className="calendar-modal-row">
                 <div style={{ flex: 1 }}>

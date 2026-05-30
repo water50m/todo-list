@@ -2,6 +2,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
+import AppointmentBell from './AppointmentBell';
 import Sidebar from './Sidebar';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -31,6 +32,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      <AppointmentBell />
     </div>
   );
 }

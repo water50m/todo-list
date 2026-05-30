@@ -17,6 +17,13 @@ type ChecklistLogRow = {
   total_items: number;
 };
 
+type ChecklistItemLogRow = {
+  log_id: string;
+  template_item_id: string;
+  is_done: boolean;
+  done_at: string | null;
+};
+
 function dateOnly(value: string | Date) {
   if (value instanceof Date) return value.toISOString().split('T')[0];
   return String(value).split('T')[0];
@@ -49,7 +56,7 @@ export async function GET(req: NextRequest) {
     const from = req.nextUrl.searchParams.get('from') || fallbackFrom;
     const to = req.nextUrl.searchParams.get('to') || fallbackTo;
 
-    const [appointments, checklistLogs, templateItems, tasks] = await Promise.all([
+    const [appointments, checklistLogs, templateItems, checklistItemLogs, tasks] = await Promise.all([
       pool.query<Appointment & { event_date: string }>(
         `SELECT a.*,
           a.start_at::date::text AS event_date,
@@ -90,6 +97,18 @@ export async function GET(req: NextRequest) {
          ORDER BY dt.name ASC, ti.sort_order ASC`,
         [userId]
       ),
+      pool.query<ChecklistItemLogRow>(
+        `SELECT
+          cil.log_id,
+          cil.template_item_id,
+          cil.is_done,
+          cil.done_at::text AS done_at
+         FROM checklist_item_logs cil
+         JOIN checklist_logs cl ON cl.id = cil.log_id
+         WHERE cl.user_id = $1
+           AND cl.log_date BETWEEN $2 AND $3`,
+        [userId, from, to]
+      ),
       pool.query(
         `SELECT
           id,
@@ -122,6 +141,11 @@ export async function GET(req: NextRequest) {
       logMap.set(`${log.template_id}:${dateOnly(log.date)}`, log);
     }
 
+    const itemLogMap = new Map<string, ChecklistItemLogRow>();
+    for (const itemLog of checklistItemLogs.rows) {
+      itemLogMap.set(`${itemLog.log_id}:${itemLog.template_item_id}`, itemLog);
+    }
+
     const templateMap = new Map<string, { name: string; items: TemplateItemRow[] }>();
     for (const item of templateItems.rows) {
       if (!templateMap.has(item.template_id)) {
@@ -141,6 +165,17 @@ export async function GET(req: NextRequest) {
           template_name: template.name,
           done_items: Number(log?.done_items || 0),
           total_items: Number(log?.total_items || scheduledItems.length),
+          items: scheduledItems.map(item => {
+            const itemLog = log ? itemLogMap.get(`${log.id}:${item.id}`) : undefined;
+            const itemId = log ? `${log.id}-${item.id}` : `${templateId}-${date}-${item.id}`;
+            return {
+              id: itemId,
+              template_item_id: item.id,
+              title: item.title,
+              is_done: !!itemLog?.is_done,
+              done_at: itemLog?.done_at || undefined,
+            };
+          }),
         });
       }
     }

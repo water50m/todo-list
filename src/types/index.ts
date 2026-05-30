@@ -197,6 +197,13 @@ export interface CalendarChecklistEvent {
   template_name: string;
   done_items: number;
   total_items: number;
+  items: Array<{
+    id: string;
+    template_item_id: string;
+    title: string;
+    is_done: boolean;
+    done_at?: string;
+  }>;
 }
 
 export interface CalendarTaskEvent {
