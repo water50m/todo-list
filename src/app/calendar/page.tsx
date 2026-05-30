@@ -326,6 +326,7 @@ export default function CalendarPage() {
                 const events = dayMap.get(key) || { ...EMPTY_DAY, date: key };
                 const isSelected = sameDay(thisDate, selected);
                 const isToday = sameDay(thisDate, today);
+                const hasAppointments = filters.appointments && events.appointments.length > 0;
                 return (
                   <button
                     key={key}
@@ -336,9 +337,13 @@ export default function CalendarPage() {
                       textAlign:'left',
                       padding: 12,
                       borderRadius:'var(--radius-md)',
-                      border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border-subtle)'}`,
-                      background: isSelected ? 'var(--accent-soft)' : 'rgba(255,255,255,0.72)',
-                      boxShadow: isSelected ? 'var(--shadow-sm)' : 'none',
+                      border: `1px solid ${isSelected ? 'var(--accent)' : hasAppointments ? '#E99AB9' : 'var(--border-subtle)'}`,
+                      background: isSelected
+                        ? 'var(--accent-soft)'
+                        : hasAppointments
+                          ? 'linear-gradient(180deg, #FFE4EE 0%, #FFF7FA 100%)'
+                          : 'rgba(255,255,255,0.72)',
+                      boxShadow: isSelected ? 'var(--shadow-sm)' : hasAppointments ? '0 0 0 2px rgba(216, 92, 138, 0.10), var(--shadow-sm)' : 'none',
                       cursor:'pointer',
                     }}
                   >
@@ -350,12 +355,20 @@ export default function CalendarPage() {
                         color: isToday ? 'var(--accent-fg)' : 'var(--text-primary)',
                         background: isToday ? 'var(--accent)' : 'transparent',
                       }}>{thisDate.getDate()}</span>
-                      {filters.appointments && events.appointments.length > 0 && (
-                        <span style={{ fontSize:10, color:'var(--text-muted)' }}>{events.appointments.length} นัด</span>
+                      {hasAppointments && (
+                        <span className="calendar-appt-badge">
+                          {events.appointments.length} นัด
+                        </span>
                       )}
                     </div>
 
                     <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                      {hasAppointments && (
+                        <div className="calendar-appt-line">
+                          <span className="calendar-appt-dot" />
+                          <span>{events.appointments[0].title}</span>
+                        </div>
+                      )}
                       {filters.checklists && events.checklists.slice(0, 2).map(item => (
                         <div key={item.id} style={{ display:'flex', alignItems:'center', gap:5, minWidth:0 }}>
                           <span style={{
@@ -363,7 +376,7 @@ export default function CalendarPage() {
                             background: progressColor(item.done_items, item.total_items),
                           }} />
                           <span style={{ fontSize:10, color:'var(--text-secondary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                            {item.template_name} {item.done_items}/{item.total_items}
+                            Daily {item.done_items}/{item.total_items}
                           </span>
                         </div>
                       ))}
