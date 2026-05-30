@@ -195,9 +195,10 @@ textarea.input { resize: vertical; }
 }
 
 .app-content {
-  width: min(100%, 1180px);
-  margin: 0 auto;
-  padding: 28px clamp(20px, 4vw, 44px) 48px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 28px clamp(20px, 3vw, 40px) 48px;
 }
 
 .app-topbar {
@@ -244,6 +245,15 @@ textarea.input { resize: vertical; }
   gap: 16px;
 }
 
+.dashboard-chart-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
 .quick-actions-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -252,7 +262,7 @@ textarea.input { resize: vertical; }
 
 .daily-container,
 .settings-container {
-  width: min(100%, 720px);
+  width: 100%;
 }
 
 .task-search {
@@ -335,8 +345,8 @@ textarea.input { resize: vertical; }
 }
 
 .calendar-page {
-  width: min(100%, 1360px);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
 }
 
 .calendar-board {

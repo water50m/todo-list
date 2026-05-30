@@ -46,14 +46,14 @@ export async function GET() {
         [userId]
       ),
 
-      // Daily completion past 7 days
+      // Daily completion past 30 days
       pool.query(
         `SELECT
           log_date::text AS date,
           done_items AS done,
           total_items AS total
          FROM checklist_logs
-         WHERE user_id = $1 AND log_date >= CURRENT_DATE - 6
+         WHERE user_id = $1 AND log_date >= CURRENT_DATE - 29
          ORDER BY log_date ASC`,
         [userId]
       ),
@@ -180,6 +180,24 @@ export async function GET() {
       )
       .slice(0, 5);
 
+    const checklistItemCompletion = Array.from(rankingMap.values())
+      .map(item => {
+        const byDate = new Map<string, { date: string; done: number; total: number }>();
+        for (const log of item.logs) {
+          const current = byDate.get(log.date) || { date: log.date, done: 0, total: 0 };
+          current.total += 1;
+          if (log.is_done) current.done += 1;
+          byDate.set(log.date, current);
+        }
+
+        return {
+          id: item.id,
+          title: item.title,
+          days: Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date)),
+        };
+      })
+      .filter(item => item.days.length > 0);
+
     const stats: DashboardStats = {
       total_tasks: total,
       done_tasks: done,
@@ -196,6 +214,7 @@ export async function GET() {
         name: r.name, color: r.color, count: parseInt(r.count),
       })),
       daily_completion: dailyCompletion.rows,
+      checklist_item_completion: checklistItemCompletion,
       checklist_rankings: checklistRankings,
       upcoming_appointments: upcomingAppts.rows,
       recurring_tasks: recurringTasks.rows.map(r => ({

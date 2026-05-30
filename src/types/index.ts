@@ -178,6 +178,11 @@ export interface DashboardStats {
   tasks_by_priority: Record<Priority, number>;
   tasks_by_category: Array<{ name: string; color: string; count: number }>;
   daily_completion: Array<{ date: string; done: number; total: number }>;
+  checklist_item_completion: Array<{
+    id: string;
+    title: string;
+    days: Array<{ date: string; done: number; total: number }>;
+  }>;
   checklist_rankings: Array<{
     id: string;
     title: string;

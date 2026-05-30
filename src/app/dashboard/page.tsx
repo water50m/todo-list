@@ -19,6 +19,8 @@ function localDateKey(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
+type ChartPeriod = 7 | 30;
+
 function StatCard({ value, label, sub, accent, onClick }: {
   value: string|number; label: string; sub?: string; accent?: string; onClick?: () => void;
 }) {
@@ -46,6 +48,7 @@ function MiniLineChart({ data }: { data: Array<{date:string; done:number; total:
   const maxVal = Math.max(...data.map(d => d.total), 1);
   const W=320, H=96, PAD=8;
   const xStep = (W-PAD*2) / Math.max(data.length-1, 1);
+  const labelStep = data.length > 14 ? 5 : data.length > 9 ? 2 : 1;
   const pts = (key: 'done'|'total') =>
     data.map((d,i) => `${PAD+i*xStep},${H-PAD-(d[key]/maxVal)*(H-PAD*2)}`).join(' ');
   return (
@@ -62,7 +65,9 @@ function MiniLineChart({ data }: { data: Array<{date:string; done:number; total:
         return (
           <g key={d.date}>
             <circle cx={x} cy={y} r={3.5} fill="var(--accent-2)" />
-            <text x={x} y={H+16} textAnchor="middle" fontSize={9} fill="var(--text-muted)">{shortDate(d.date)}</text>
+            {(i % labelStep === 0 || i === data.length - 1) && (
+              <text x={x} y={H+16} textAnchor="middle" fontSize={9} fill="var(--text-muted)">{shortDate(d.date)}</text>
+            )}
           </g>
         );
       })}
@@ -124,27 +129,56 @@ function UpcomingAppointmentsCard({ appointments, nowMs, onOpen }: { appointment
   );
 }
 
-function WeekDailyCard({ data }: { data: Array<{date:string; done:number; total:number}> }) {
+function WeekDailyCard({
+  data,
+  period,
+  selectedTitle,
+  onPeriodChange,
+  onShowAll,
+}: {
+  data: Array<{date:string; done:number; total:number}>;
+  period: ChartPeriod;
+  selectedTitle?: string;
+  onPeriodChange: (period: ChartPeriod) => void;
+  onShowAll: () => void;
+}) {
   const total = data.reduce((sum, day) => sum + day.total, 0);
   const done = data.reduce((sum, day) => sum + day.done, 0);
   const completeDays = data.filter(day => day.total > 0 && day.done === day.total).length;
   const activeDays = data.filter(day => day.total > 0).length;
   const rate = pct(done, total);
+  const title = selectedTitle || `ภาพรวม Daily ${period} วัน`;
 
   return (
     <div className="card" style={{ padding:'16px 20px' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
         <div>
-          <div style={{ fontSize:13, fontWeight:700 }}>ภาพรวม Daily 7 วัน</div>
+          <div style={{ fontSize:13, fontWeight:700 }}>{title}</div>
           <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>
-            เสร็จ {done}/{total} รายการ
+            {selectedTitle ? `กราฟเฉพาะรายการนี้ ${period} วัน` : `เสร็จ ${done}/${total} รายการ`}
           </div>
         </div>
-        <span className="badge" style={{
-          background:'var(--med-bg)', borderColor:'#BFDBFE', color:'var(--med)',
-        }}>
-          เฉลี่ย {rate}%
-        </span>
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', justifyContent:'flex-end' }}>
+          {selectedTitle && (
+            <button className="btn btn-secondary btn-sm" onClick={onShowAll}>แสดงทั้งหมด</button>
+          )}
+          <div className="dashboard-chart-toggle" aria-label="ช่วงเวลาของกราฟ">
+            {[7, 30].map(value => (
+              <button
+                key={value}
+                className={`btn btn-sm ${period === value ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => onPeriodChange(value as ChartPeriod)}
+              >
+                {value} วัน
+              </button>
+            ))}
+          </div>
+          <span className="badge" style={{
+            background:'var(--med-bg)', borderColor:'#BFDBFE', color:'var(--med)',
+          }}>
+            เฉลี่ย {rate}%
+          </span>
+        </div>
       </div>
       <MiniLineChart data={data} />
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:8, marginTop:12 }}>
@@ -165,8 +199,11 @@ function WeekDailyCard({ data }: { data: Array<{date:string; done:number; total:
   );
 }
 
-function ChecklistRankingCard({ rankings, onOpen }: {
+function ChecklistRankingCard({ rankings, selectedId, onSelect, onShowAll, onOpen }: {
   rankings: DashboardStats['checklist_rankings'];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onShowAll: () => void;
   onOpen: () => void;
 }) {
   return (
@@ -176,7 +213,10 @@ function ChecklistRankingCard({ rankings, onOpen }: {
           <div style={{ fontSize:13, fontWeight:700 }}>อันดับ Checklist ต่อเนื่อง</div>
           <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>วัดจาก log 30 วันล่าสุด</div>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={onOpen}>เปิด Daily →</button>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
+          <button className="btn btn-secondary btn-sm" onClick={onShowAll}>แสดงทั้งหมด</button>
+          <button className="btn btn-ghost btn-sm" onClick={onOpen}>เปิด Daily →</button>
+        </div>
       </div>
 
       {!rankings.length ? (
@@ -188,15 +228,21 @@ function ChecklistRankingCard({ rankings, onOpen }: {
           {rankings.map((item, index) => {
             const rankColor = index === 0 ? 'var(--high)' : index === 1 ? 'var(--accent-2)' : 'var(--text-secondary)';
             return (
-              <div key={item.id} style={{
+              <button key={item.id} onClick={() => onSelect(item.id)} style={{
                 display:'grid',
                 gridTemplateColumns:'34px minmax(0, 1fr) auto',
                 gap:10,
                 alignItems:'center',
                 padding:'10px 12px',
-                background:'var(--bg)',
-                border:'1px solid var(--border-subtle)',
+                background:selectedId === item.id ? 'var(--med-bg)' : 'var(--bg)',
+                border:`1px solid ${selectedId === item.id ? '#8CC7DF' : 'var(--border-subtle)'}`,
                 borderRadius:'var(--radius-md)',
+                cursor:'pointer',
+                textAlign:'left',
+                width:'100%',
+                font:'inherit',
+                color:'inherit',
+                boxShadow:selectedId === item.id ? '0 0 0 2px rgba(36, 123, 160, 0.10)' : 'none',
               }}>
                 <div style={{
                   width:28, height:28, borderRadius:'50%',
@@ -234,7 +280,7 @@ function ChecklistRankingCard({ rankings, onOpen }: {
                   <div style={{ fontSize:10, color:'var(--text-muted)', marginTop:3 }}>ครั้งติดกัน</div>
                   <div style={{ fontSize:11, color:'var(--text-secondary)', marginTop:3 }}>{item.completion_rate}%</div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -275,6 +321,8 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [nowMs] = useState(() => Date.now());
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>(7);
+  const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -299,9 +347,13 @@ export default function DashboardPage() {
   const todayKey = localDateKey();
   const todayCompletion = stats.daily_completion.find(day => day.date === todayKey);
   const todayRate = pct(todayCompletion?.done || 0, todayCompletion?.total || 0);
-  const weekDone = stats.daily_completion.reduce((sum, day) => sum + day.done, 0);
-  const weekTotal = stats.daily_completion.reduce((sum, day) => sum + day.total, 0);
+  const weekCompletion = stats.daily_completion.slice(-7);
+  const weekDone = weekCompletion.reduce((sum, day) => sum + day.done, 0);
+  const weekTotal = weekCompletion.reduce((sum, day) => sum + day.total, 0);
   const weekRate = pct(weekDone, weekTotal);
+  const selectedChecklist = stats.checklist_item_completion.find(item => item.id === selectedChecklistId);
+  const chartSource = selectedChecklist ? selectedChecklist.days : stats.daily_completion;
+  const chartData = chartSource.slice(-chartPeriod);
 
   return (
     <div className="page-stack">
@@ -336,8 +388,20 @@ export default function DashboardPage() {
       </div>
 
       <div className="dashboard-grid">
-        <WeekDailyCard data={stats.daily_completion} />
-        <ChecklistRankingCard rankings={stats.checklist_rankings || []} onOpen={() => router.push('/daily')} />
+        <WeekDailyCard
+          data={chartData}
+          period={chartPeriod}
+          selectedTitle={selectedChecklist?.title}
+          onPeriodChange={setChartPeriod}
+          onShowAll={() => setSelectedChecklistId(null)}
+        />
+        <ChecklistRankingCard
+          rankings={stats.checklist_rankings || []}
+          selectedId={selectedChecklistId}
+          onSelect={setSelectedChecklistId}
+          onShowAll={() => setSelectedChecklistId(null)}
+          onOpen={() => router.push('/daily')}
+        />
       </div>
 
       <div className="dashboard-grid">
