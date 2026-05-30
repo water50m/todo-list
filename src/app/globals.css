@@ -303,11 +303,11 @@ textarea.input { resize: vertical; }
   min-height: 20px;
   padding: 1px 7px;
   border-radius: 99px;
-  background: var(--accent);
+  background: var(--med);
   color: var(--accent-fg);
   font-size: 10px;
   font-weight: 700;
-  box-shadow: 0 6px 12px rgba(216, 92, 138, 0.16);
+  box-shadow: 0 6px 12px rgba(36, 123, 160, 0.16);
 }
 
 .calendar-appt-line {
@@ -315,7 +315,7 @@ textarea.input { resize: vertical; }
   align-items: center;
   gap: 5px;
   min-width: 0;
-  color: #963C64;
+  color: var(--med);
   font-size: 10px;
   font-weight: 700;
 }
@@ -330,7 +330,7 @@ textarea.input { resize: vertical; }
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--med);
   flex-shrink: 0;
 }
 

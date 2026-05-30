@@ -337,13 +337,13 @@ export default function CalendarPage() {
                       textAlign:'left',
                       padding: 12,
                       borderRadius:'var(--radius-md)',
-                      border: `1px solid ${isSelected ? 'var(--accent)' : hasAppointments ? '#E99AB9' : 'var(--border-subtle)'}`,
+                      border: `1px solid ${isSelected ? 'var(--accent)' : hasAppointments ? '#8CC7DF' : 'var(--border-subtle)'}`,
                       background: isSelected
                         ? 'var(--accent-soft)'
                         : hasAppointments
-                          ? 'linear-gradient(180deg, #FFE4EE 0%, #FFF7FA 100%)'
+                          ? 'linear-gradient(180deg, #EAF7FA 0%, #F8FEFF 100%)'
                           : 'rgba(255,255,255,0.72)',
-                      boxShadow: isSelected ? 'var(--shadow-sm)' : hasAppointments ? '0 0 0 2px rgba(216, 92, 138, 0.10), var(--shadow-sm)' : 'none',
+                      boxShadow: isSelected ? 'var(--shadow-sm)' : hasAppointments ? '0 0 0 2px rgba(36, 123, 160, 0.12), var(--shadow-sm)' : 'none',
                       cursor:'pointer',
                     }}
                   >
