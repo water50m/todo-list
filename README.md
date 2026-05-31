@@ -1,58 +1,87 @@
 # Todo List
 
-แอปจัดการงานส่วนตัวที่รวม task, daily checklist, นัดหมาย และปฏิทินรวมไว้ในที่เดียว เหมาะสำหรับติดตามงานประจำวัน งานที่ทำเป็นบางวัน และภาพรวมของเดือน
+Todo List เป็นเว็บแอปจัดการงานส่วนตัวที่รวม Tasks, Daily Checklist, นัดหมาย, ปฏิทินรวม และ Dashboard analytics ไว้ในระบบเดียว เหมาะสำหรับติดตามงานรายวัน งานที่ต้องทำซ้ำ ความคืบหน้าของ checklist และภาพรวมตารางนัดหมายในแต่ละเดือน
 
-## Feature การใช้งาน
+## Portfolio Snippet
+
+### English
+
+```ts
+{
+  title: "Personal Task and Daily Checklist Management Platform",
+  tech: "Next.js 16, React 19, TypeScript, PostgreSQL, Tailwind CSS 4, Docker",
+  points: [
+    "Built a full-stack productivity platform with task management, daily checklist tracking, appointment scheduling, and calendar views.",
+    "Implemented PIN-based authentication, PostgreSQL data models, recurring checklist rules, category/tag organization, and dashboard analytics.",
+    "Designed a responsive Thai-language interface with reusable components, progress charts, filters, modals, and Docker-ready production deployment."
+  ]
+}
+```
+
+### ภาษาไทย
+
+```ts
+{
+  title: "แพลตฟอร์มจัดการงานส่วนตัวและ Daily Checklist",
+  tech: "Next.js 16, React 19, TypeScript, PostgreSQL, Tailwind CSS 4, Docker",
+  points: [
+    "พัฒนาเว็บแอปแบบ Full-stack สำหรับจัดการงานประจำวัน, Daily Checklist, นัดหมาย และปฏิทินรวมในระบบเดียว",
+    "ออกแบบระบบเข้าสู่ระบบด้วย PIN, โครงสร้างฐานข้อมูล PostgreSQL, การตั้งค่างานซ้ำ, หมวดหมู่, แท็ก และ Dashboard วิเคราะห์ความคืบหน้า",
+    "สร้าง UI ภาษาไทยแบบ Responsive พร้อม reusable components, กราฟความคืบหน้า, ตัวกรองข้อมูล, modal และรองรับการ deploy ด้วย Docker"
+  ]
+}
+```
+
+## Features
 
 ### Dashboard
 
-- ดูภาพรวมงานทั้งหมด, completion rate, งานเกินกำหนด และ daily streak
-- ถ้ามีนัดหมายใน 7 วันข้างหน้า ระบบจะแสดงแถบนัดหมายไว้ด้านบนสุด
-- ดูกราฟความคืบหน้า daily checklist ย้อนหลัง 7 วัน
-- ดู breakdown ตาม priority และหมวดหมู่
-- เข้าใช้งานหน้า Tasks, Daily Checklist และ Settings ได้เร็วจาก quick actions
+- แสดงภาพรวมงานทั้งหมด งานที่เสร็จแล้ว งานเกินกำหนด และ completion rate
+- ติดตาม Daily Checklist ด้วยกราฟย้อนหลัง 7 หรือ 30 วัน
+- แสดง Daily Streak และอันดับ checklist ที่ทำต่อเนื่อง
+- แสดงนัดหมายที่กำลังจะมาถึงภายใน 7 วัน
+- มี quick actions สำหรับไปหน้า Tasks, Daily Checklist, Calendar และ Settings
 
 ### Tasks
 
-- สร้าง task แบบเรียบง่าย โดยใส่ชื่อ รายละเอียด และความสำคัญ
-- แก้ไข task ได้จากรายการ task โดยตรง
-- เปลี่ยนสถานะ task เป็นเสร็จแล้วหรือยังไม่ทำได้
-- กรอง task ตามสถานะ, priority, หมวดหมู่ และค้นหาจากชื่อ
-- task ที่ทำเสร็จจะถูก mark ลงในปฏิทินรวมตามวันที่ทำเสร็จ
+- สร้าง แก้ไข ลบ และเปลี่ยนสถานะ task ได้
+- รองรับ priority, due date, due time, หมวดหมู่, tags และ subtasks
+- ค้นหาและกรอง task ตามสถานะ priority และหมวดหมู่
+- บันทึก task ที่เสร็จแล้วเพื่อนำไปแสดงในปฏิทินรวม
+- รองรับข้อมูล recurrence สำหรับ task ที่ต้องทำซ้ำ
 
 ### Daily Checklist
 
-- แสดง checklist ของวันที่เลือกโดยดึงจาก database
-- ไม่แบ่งช่วงเวลา รายการทั้งหมดแสดงเป็น list เดียว
-- แก้ไขรายการ checklist ได้จากปุ่มฟันเฟืองท้ายรายการ
-- เพิ่มหรือแก้ไข checklist item พร้อมเลือกหมวดหมู่และ tag ได้
-- ติดตาม progress เป็นจำนวนที่ทำแล้วเทียบกับทั้งหมด
-- รองรับ checklist ที่ไม่ได้ทำทุกวัน เช่น ทำเฉพาะบางวัน, วันธรรมดา, วันหยุด, หลายวันที่เลือกเอง หรือ custom recurrence
-- checklist แต่ละวันจะแสดงในปฏิทินรวมเป็นชื่อ template พร้อมจุดสีบอกความคืบหน้า และตัวเลข `done/all`
+- สร้าง checklist รายวันจาก template ในฐานข้อมูล
+- เลือกดู checklist ย้อนหลังและติดตามจำนวนที่ทำแล้วเทียบกับทั้งหมด
+- แก้ไข checklist item ได้จากหน้ารายวันหรือหน้า Settings
+- รองรับรายการที่ไม่ได้ทำทุกวัน เช่น วันธรรมดา วันหยุด หลายวันที่เลือกเอง หรือ custom recurrence
+- แสดง progress bar, streak และสถานะรายการแบบ real-time หลังจากกดทำเสร็จ
 
 ### Calendar
 
-- แยกส่วน `นัดหมาย` และ `ปฏิทินรวม` ออกจากกันชัดเจน
-- ส่วนนัดหมายใช้สำหรับเพิ่ม แก้ไข ยกเลิก และลบนัดหมาย
-- ปฏิทินรวมแสดง daily checklist, task และ appointment ในเดือนเดียวกัน
-- มี filter เพื่อเลือกดูเฉพาะ นัดหมาย, Daily หรือ Tasks
-- กดวันที่ในปฏิทินรวมเพื่อดูรายละเอียดของวันนั้น
-- เพิ่มนัดหมายจากวันที่เลือกได้ทันที โดย modal จะตั้งวันที่เริ่มต้นเป็นวันนั้นให้
+- รวม Daily Checklist, Tasks และ Appointments ไว้ในปฏิทินเดือนเดียว
+- กรองการแสดงผลเฉพาะนัดหมาย Daily หรือ Tasks ได้
+- เลือกวันที่เพื่อดูรายละเอียดของวันนั้น
+- เพิ่ม แก้ไข ยกเลิก หรือลบนัดหมายจากหน้าปฏิทิน
+- รองรับนัดหมายแบบทั้งวัน สถานที่ ผู้เข้าร่วม และการแจ้งเตือนล่วงหน้า
 
 ### Settings
 
-- จัดการ Daily Template หลักเพียงชุดเดียว ไม่ต้องสร้างหลาย template
-- เพิ่มหรือแก้ไข checklist item พร้อมตั้ง recurrence, หมวดหมู่ และ tag ได้
-- จัดการหมวดหมู่และ tags เพื่อใช้กับ task และ daily checklist
+- จัดการ Daily Template หลักและ checklist items
+- ตั้ง recurrence, หมวดหมู่ และ tag ให้แต่ละ checklist item
+- สร้าง แก้ไข และลบ categories
+- สร้าง แก้ไข และลบ tags พร้อมสีแสดงผล
 
 ### Authentication
 
-- login ด้วย PIN ผ่านหน้า `/login`
-- schema มี seed user เริ่มต้น:
+- เข้าสู่ระบบด้วย PIN ผ่านหน้า `/login`
+- ใช้ session cookie แบบ HTTP-only
+- Seed user เริ่มต้นใน `database/schema.sql`
 
 ```text
-name: Demo User
-pin: 1234
+Name: Demo User
+PIN: 1234
 ```
 
 ## Tech Stack
@@ -62,6 +91,7 @@ pin: 1234
 - TypeScript
 - PostgreSQL
 - Tailwind CSS 4
+- Node.js 22
 - Docker / Docker Compose
 
 ## Requirements
@@ -73,7 +103,7 @@ pin: 1234
 
 ## Environment Variables
 
-สร้างไฟล์ `.env` ที่ root ของโปรเจกต์:
+สร้างไฟล์ `.env` ที่ root ของโปรเจกต์
 
 ```env
 DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@<DB_HOST>:<DB_PORT>/todo_list
@@ -81,33 +111,29 @@ JWT_SECRET=<LONG_RANDOM_SECRET>
 NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
-ตัวอย่างสำหรับ Docker ที่ database อยู่บน host machine:
+ตัวอย่างเมื่อรันแอปใน Docker และ PostgreSQL อยู่บน host machine
 
 ```env
-DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@host.docker.internal:5432/todo_list
-JWT_SECRET=<LONG_RANDOM_SECRET>
+DATABASE_URL=postgresql://postgres:password@host.docker.internal:5432/todo_list
+JWT_SECRET=replace-with-a-long-random-secret
 NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
-โดยทั่วไป PostgreSQL ใช้ port `5432` เป็นค่า default แต่ถ้า database ใช้ port อื่น ให้เปลี่ยน `<DB_PORT>` ตามจริง
+## Database Setup
 
-## Database
-
-ใช้ PostgreSQL database ชื่อ `todo_list`
-
-สร้างหรืออัปเดต schema ด้วยไฟล์:
+สร้าง PostgreSQL database ชื่อ `todo_list` ก่อน จากนั้นรัน schema
 
 ```bash
 psql "$DATABASE_URL" -f database/schema.sql
 ```
 
-หรือถ้าอยู่ในเครื่อง host:
+หรือระบุ host, port และ user เอง
 
 ```bash
 psql -h <DB_HOST> -p <DB_PORT> -U <DB_USER> -d todo_list -f database/schema.sql
 ```
 
-schema นี้จะสร้างตารางหลัก:
+ตารางหลักที่ schema สร้างให้ ได้แก่
 
 - `users`
 - `tasks`, `subtasks`, `task_tags`
@@ -116,54 +142,63 @@ schema นี้จะสร้างตารางหลัก:
 - `checklist_logs`, `checklist_item_logs`
 - `appointments`, `appointment_attendees`
 
-ถ้ามี database เดิมอยู่แล้ว ให้รัน `database/schema.sql` ซ้ำเพื่อเพิ่มคอลัมน์ใหม่ เช่น recurrence, category และ tag ของ `template_items`
+## Local Development
 
-## Development
-
-ติดตั้ง dependencies:
+ติดตั้ง dependencies
 
 ```bash
 npm install
 ```
 
-รัน dev server:
+รัน development server
 
 ```bash
 npm run dev
 ```
 
-เปิดแอปที่:
+เปิดเว็บแอป
 
 ```text
 http://localhost:3000
 ```
 
+เข้าสู่ระบบด้วย PIN เริ่มต้น
+
+```text
+1234
+```
+
 ## Production Build
+
+สร้าง production build
 
 ```bash
 npm run build
+```
+
+รัน production server
+
+```bash
 npm run start
 ```
 
-โปรเจกต์ตั้งค่า `output: 'standalone'` ใน `next.config.ts` แล้ว จึงพร้อมใช้กับ Docker image แบบ production
+โปรเจกต์ตั้งค่า `output: 'standalone'` ใน `next.config.ts` แล้ว จึงเหมาะกับการ build เป็น Docker image สำหรับ production
 
 ## Docker
 
-แก้ค่า `.env` ให้ชี้ไปที่ database `todo_list` ก่อน แล้วรัน:
+ตรวจสอบค่า `.env` ให้ชี้ไปยัง PostgreSQL ที่ถูกต้อง จากนั้นรัน
 
 ```bash
 docker compose up -d --build
 ```
 
-เปิดแอปที่:
+เปิดแอปที่
 
 ```text
 http://localhost:3000
 ```
 
-Docker Compose ของโปรเจกต์นี้ map host port `3000` ไปยัง container port `3000`
-
-หยุด container:
+หยุด container
 
 ```bash
 docker compose down
@@ -183,16 +218,46 @@ npm run lint     # run ESLint
 ```text
 src/
   app/              Next.js App Router pages and API routes
-  components/       Shared UI components
-  hooks/            Client hooks
-  lib/              Database connection, auth helpers, recurrence helpers
+  components/       Shared UI components and modals
+  hooks/            Client-side hooks
+  lib/              Database, auth, and recurrence helpers
   types/            Shared TypeScript types
 database/
   schema.sql        PostgreSQL schema and seed data
 ```
 
+## Main Routes
+
+```text
+/login       PIN login
+/dashboard   Overview, progress charts, streaks, upcoming appointments
+/tasks       Task management with filters and search
+/daily       Daily Checklist tracking
+/calendar    Monthly calendar for appointments, tasks, and checklist logs
+/settings    Template, category, and tag management
+```
+
+## API Overview
+
+```text
+/api/auth/pin
+/api/dashboard
+/api/tasks
+/api/tasks/[id]
+/api/checklist
+/api/templates
+/api/calendar/events
+/api/appointments
+/api/appointments/[id]
+/api/categories
+/api/categories/[id]
+/api/tags
+/api/tags/[id]
+```
+
 ## Notes
 
-- `.env` ถูก ignore โดย git แล้ว ไม่ควร commit secret จริงเข้า repo
-- ถ้าใช้ Docker บน Windows/Mac แล้ว database อยู่บน host machine ให้ใช้ `host.docker.internal` ใน `DATABASE_URL`
-- Docker ใช้ host port `3000` ถ้าเครื่องมี service อื่นใช้ port นี้อยู่ ต้องหยุด service นั้นก่อน หรือแก้ port mapping ใน `docker-compose.yml`
+- `.env` ถูก ignore โดย git แล้ว ไม่ควร commit secret จริงเข้า repository
+- ถ้าใช้ Docker บน Windows หรือ macOS และ database อยู่บนเครื่อง host ให้ใช้ `host.docker.internal` ใน `DATABASE_URL`
+- Docker Compose map host port `3000` ไปยัง container port `3000`
+- ถ้า port `3000` ถูกใช้งานอยู่ ให้หยุด service เดิมหรือแก้ port mapping ใน `docker-compose.yml`
